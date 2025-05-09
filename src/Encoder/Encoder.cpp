@@ -1,7 +1,7 @@
 #include "Encoder.h"
 #include <AxisEncoderShield3.h>
 
-Encoder::Encoder(int id, float ticks_per_rev) : encoder_id(id), ticks_per_rev(ticks_per_rev), prev_ticks(0), prev_time_ms(0), omega_rad_s(0) {}
+Encoder::Encoder(int id, float ticks_per_rev) : encoder_id(id), ticks_per_rev(ticks_per_rev), init_ticks(0), prev_ticks(0), prev_time_ms(0), omega_rad_s(0) {}
 
 void Encoder::begin() {
     initEncoderShield();
