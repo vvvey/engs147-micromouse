@@ -16,4 +16,5 @@ class Encoder {
         long prev_ticks;
         unsigned long prev_time_ms;
         float omega_rad_s;
+        long init_ticks;
 };
