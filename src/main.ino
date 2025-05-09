@@ -1,4 +1,7 @@
-#include "src/Encoder.h"
+#include "Encoder.h"
+#include "ArduinoMotorShieldR3.h"
+// #include "BNO055.h"
+// #include "NAxisMotion.h"
 
 Encoder rightEnc(1, 1440.0);  // encoder 1, 1440 ticks/rev
 
@@ -26,4 +29,3 @@ void loop() {
         }
     }
 }
-4
