@@ -1,17 +1,15 @@
+#ifndef IR_H
+#define IR_H
 
-class IR {
-    public:
-        IR(int id, int type);
-        IR(int id, int type, int pin);
-        void begin(int id, int pin);
-        float getDistance(int id);
-    
-    private:
-        int ir_id;
-        int ir_type;
-        int ir_pin;
-        int ir_analog_value;
-        int ir_distance;
-        float v2d_4_30(float v);
-        float v2d_2_15(float v);
-};
+#include <Arduino.h>
+#include <math.h> 
+
+#define LEFT_IR A8
+#define FRONT_IR A9
+#define RIGHT_IR A10
+
+void IR_init(void);
+float IR_getDistance(int id);
+
+#endif
+
