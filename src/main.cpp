@@ -3,7 +3,7 @@
 // #include "BNO055.h"
 // #include "NAxisMotion.h"
 
-Encoder rightEnc(1, 1440.0);  // encoder 1, 1440 ticks/rev
+Encoder rightEnc(2, 1204.0);  // encoder 1, 1440 ticks/rev
 
 unsigned long prev_time = 0;
 const unsigned long TS = 10; // sample period in ms
@@ -19,10 +19,10 @@ void setup() {
 void loop() {
     unsigned long curr_time = millis();
 
-    if ((curr_time - start_time) < RECORD_TIME) {
+    if (true) {
         if ((curr_time - prev_time) >= TS) {
             rightEnc.update(curr_time);
-            float omega = rightEnc.getVelocity();  // rad/s
+            float omega = rightEnc.getOmega();  // rad/s
 
             Serial.println(omega);
             prev_time = curr_time;

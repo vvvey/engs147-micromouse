@@ -6,7 +6,7 @@ class Encoder {
         void begin();
         void update(unsigned long current_time_ms);  // pass millis()
     
-        float getVelocity();    // returns omega (rad/s)
+        float getOmega();    // returns omega (rad/s)
         long getPosition();     // encoder ticks
         void reset();
     

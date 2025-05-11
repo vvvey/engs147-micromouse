@@ -8,6 +8,7 @@ void Encoder::begin() {
     prev_ticks = getEncoderValue(encoder_id);
     prev_time_ms = millis();
     init_ticks = prev_ticks;
+    omega_rad_s = 0;
 }
 
 void Encoder::update(unsigned long current_time_ms) {
@@ -16,7 +17,7 @@ void Encoder::update(unsigned long current_time_ms) {
 
     if (dt_ms > 0) {
         float dt_sec = dt_ms / 1000.0;
-        float revs = (curr_ticks - prev_ticks - init_ticks) / ticks_per_rev;
+        float revs = (curr_ticks - prev_ticks) / ticks_per_rev;
         omega_rad_s = (revs * 2.0 * PI) / dt_sec;
 
         prev_ticks = curr_ticks;
@@ -24,7 +25,7 @@ void Encoder::update(unsigned long current_time_ms) {
     }
 }
 
-float Encoder::getVelocity() {
+float Encoder::getOmega() {
     return omega_rad_s;
 }
 
