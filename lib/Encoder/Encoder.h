@@ -1,22 +1,26 @@
-#pragma once
+#ifndef ENCODER_H
+#define ENCODER_H
 
-#include <AxisEncoderShield3.h>    
+#include <Arduino.h>
+
 class Encoder {
-    public:
-        Encoder(int id, float ticks_per_rev);
-    
-        void begin();
-        void update(unsigned long current_time_ms);  // pass millis()
-    
-        float getOmega();    // returns omega (rad/s)
-        long getPosition();     // encoder ticks
-        void reset();
-    
-    private:
-        int encoder_id;
-        float ticks_per_rev;
-        long prev_ticks;
-        unsigned long prev_time_ms;
-        float omega_rad_s;
-        long init_ticks;
+public:
+    Encoder(int id, float ticks_per_rev);
+    void begin();
+    float getOmega();
+    long getPosition();
+    void reset();
+
+private:
+    int encoder_id;
+    float ticks_per_rev;
+    long init_ticks;
+    long prev_ticks;
+    unsigned long prev_time_ms;
+    float omega_rad_s;
 };
+
+extern Encoder rightEnc;
+extern Encoder leftEnc;
+
+#endif
