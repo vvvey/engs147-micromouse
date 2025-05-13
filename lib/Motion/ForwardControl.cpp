@@ -18,6 +18,8 @@ void ForwardControl::init(float omega) {
 
     left_ref_omega = -omega;
     right_ref_omega = omega;
+
+    Serial.println("Forward Control Initialized");
 }
 
 void ForwardControl::init() {
@@ -26,30 +28,67 @@ void ForwardControl::init() {
 
 void ForwardControl::update() {
     if (done) return;
-    unsigned long curr_time_ms = millis();
+
+    curr_time_ms = millis();
+
+    // Update Sensor Data
+    curr_angle = IMU_readZ();
 
     left_curr_omega = leftEnc.getOmega();
     right_curr_omega = rightEnc.getOmega();
 
-    float curr_angle = IMU_readZ();
-    angle_err = ref_angle - curr_angle;
-    if (angle_err > 180.0) angle_err -= 360.0;
-    if (angle_err < -180.0) angle_err += 360.0;
-
+    // Error calculation
     left_omega_err = left_ref_omega - left_curr_omega;
     right_omega_err = right_ref_omega - right_curr_omega;
+    angle_err = ref_angle - curr_angle;
 
-    float kp = 0.6;
-    float angle_kp = 0.2;
+    // Normalize angle error to [-180, 180]
+    if (angle_err > 180.0) {
+        angle_err -= 360.0;
+    } else if (angle_err < -180.0) {
+        angle_err += 360.0;
+    }
+
+    // Proportional Control
+    float angle_kp = 0.04;   
+    float kp = 0.3;          
 
     float angle_ctrl_voltage = angle_err * angle_kp;
+
     float left_ctrl_voltage = left_omega_err * kp - angle_ctrl_voltage;
     float right_ctrl_voltage = right_omega_err * kp - angle_ctrl_voltage;
 
-    set_left_motor_voltage(left_ctrl_voltage);
-    set_right_motor_voltage(right_ctrl_voltage);
+    int left_pwm = voltage_to_pwm(left_ctrl_voltage);
+    int right_pwm = voltage_to_pwm(right_ctrl_voltage);
 
+    motor_driver.setSpeeds(right_pwm, left_pwm);
+    
+    // Save previous values 
+    prev_angle = curr_angle;
     prev_time_ms = curr_time_ms;
+    left_prev_omega = left_curr_omega;
+    right_prev_omega = right_curr_omega;
+
+    // For Debugging
+    // Serial.print("Left Omega: ");
+    // Serial.println(left_curr_omega);
+    // Serial.print(" Left Error: ");
+    // Serial.println(left_omega_err);
+    // Serial.print(" Left Voltage: ");
+    // Serial.println(left_ctrl_voltage);
+
+    // Serial.print(" Right Omega: ");
+    // Serial.println(right_curr_omega);
+    // Serial.print(" Right Error: ");
+    // Serial.println(right_omega_err);
+    // Serial.print(" Right Voltage: ");
+    // Serial.println(right_ctrl_voltage);
+    
+    // Serial.print(" Angle: ");
+    // Serial.println(curr_angle);
+    // Serial.print(" Angle Error: ");
+    // Serial.println(angle_err);
+    // Serial.println("--------------------");
 }
 
 bool ForwardControl::isFinished() {

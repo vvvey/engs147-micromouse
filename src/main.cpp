@@ -1,31 +1,43 @@
 #include "Motors.h"
 #include "IR.h"
+#include "IMU.h"
+#include "Encoder.h"
 #include "ArduinoMotorShieldR3.h"
 #include "ForwardControl.h"
 
 #define TS 10
-unsigned long prev_time_ms = 0;
-unsigned long start_time_ms = 0;
+unsigned long prev_time_milli = 0;
+unsigned long start_time_milli = 0;
+unsigned long curr_time_milli = 0;
+
 ForwardControl forward;
 
 void setup() {
     Serial.begin(115200);
-    forward.init(30.0); // 30 rad/s
+    IMU_init();
     IR_init();
+    rightEnc.begin();
+    leftEnc.begin();
+    motor_driver.init();
+
+    Serial.println("Hello World");
+
+    forward.init(30.0); // 30 rad/s
+    delay(100);
 }
 
 
 
 void loop() {
-    unsigned long curr_time_ms = millis();
-    long start_time_ms = millis();
+    unsigned long curr_time_milli = millis();
+    long start_time_milli = millis();
 
-    while (curr_time_ms - start_time_ms < 10000 && IR_getDistance(A9) > 12 && forward.isFinished() == false) {
+    while (curr_time_milli - start_time_milli < 10000) {
         // Wait for 10 seconds
-        curr_time_ms = millis();
-        if (curr_time_ms - prev_time_ms >= TS) {
+        curr_time_milli = millis();
+        if (curr_time_milli - prev_time_milli >= TS) {
             forward.update();
-            prev_time_ms = curr_time_ms;
+            prev_time_milli = curr_time_milli;
         }
     }
 

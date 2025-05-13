@@ -1,5 +1,6 @@
 #include "Encoder.h"
 #include <AxisEncoderShield3.h>
+#include <Arduino.h>
 
 Encoder rightEnc(2, 360.0);  
 Encoder leftEnc(3, 360.0);
