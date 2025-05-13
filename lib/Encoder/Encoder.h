@@ -1,3 +1,5 @@
+#pragma once
+
 #include <AxisEncoderShield3.h>    
 class Encoder {
     public:
