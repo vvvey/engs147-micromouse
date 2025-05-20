@@ -94,3 +94,73 @@ void ForwardControl::update() {
 bool ForwardControl::isFinished() {
     return done;
 }
+
+void ForwardControl::setReferenceAngle(float angle) {
+    ref_angle = angle;
+}
+
+void ForwardControl::turnRight(float degrees, float omega) {
+    motor_driver.setSpeeds(0.0,0.0);
+    float start_angle = IMU_readZ();
+    float target_angle = start_angle + degrees;
+    if (target_angle > 180.0) target_angle -= 360.0;
+
+    while (true) {
+        Serial.print("IMU Target: ");
+        Serial.println(target_angle, 2);  // 2 decimal places
+        float current_angle = IMU_readZ();
+        float angle_err = target_angle - current_angle;
+
+        // Normalize to [-180, 180]
+        if (angle_err > 180.0) angle_err -= 360.0;
+        if (angle_err < -180.0) angle_err += 360.0;
+
+        float angle_kp = 0.095;
+        float turn_voltage = constrain(angle_err * angle_kp, -omega, omega);
+
+        int pwm = voltage_to_pwm(turn_voltage);
+        motor_driver.setSpeeds(-pwm, -pwm);  // left forward, right backward
+
+        if (abs(angle_err) < 2.0) break;  // stop when close enough
+    }
+
+    motor_driver.setSpeeds(0, 0);
+    delay(100);
+    ref_angle = target_angle;
+    left_ref_omega = -30.0;
+    right_ref_omega = 30.0;
+
+    Serial.print("IMU Target: ");
+    Serial.println(ref_angle, 2);  // 2 decimal places
+}
+
+
+void ForwardControl::turnLeft(float degrees, float omega) {
+    motor_driver.setSpeeds(0.0,0.0);
+    float start_angle = IMU_readZ();
+    float target_angle = start_angle - degrees;
+    if (target_angle < -180.0) target_angle += 360.0;
+
+    while (true) {
+        float current_angle = IMU_readZ();
+        float angle_err = target_angle - current_angle;
+
+        // Normalize to [-180, 180]
+        if (angle_err > 180.0) angle_err -= 360.0;
+        if (angle_err < -180.0) angle_err += 360.0;
+
+        float angle_kp = 0.095;
+        float turn_voltage = constrain(angle_err * angle_kp, -omega, omega);
+
+        int pwm = voltage_to_pwm(turn_voltage);
+        motor_driver.setSpeeds(pwm, pwm);  // left back, right forward
+
+        if (abs(angle_err) < 2.0) break;
+    }
+    motor_driver.setSpeeds(0, 0);
+    delay(100);
+    ref_angle = target_angle;
+    left_ref_omega = -30.0;
+    right_ref_omega = 30.0;                
+}
+

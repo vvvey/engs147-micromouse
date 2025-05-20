@@ -10,6 +10,10 @@ public:
     void init() override;      
     void update() override;
     bool isFinished() override;
+    void setReferenceAngle(float angle);
+    void turnLeft(float degrees, float omega);
+    void turnRight(float degrees, float omega);
+
 
 private:
     unsigned long prev_time_ms = 0;
