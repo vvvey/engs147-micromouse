@@ -22,7 +22,7 @@ float Encoder::getOmega() {
 
     if (dt_ms > 0) {
         float dt_sec = dt_ms / 1000.0;
-        float revs = (curr_ticks - prev_ticks) / ticks_per_rev;
+        float revs = (prev_ticks - curr_ticks) / ticks_per_rev;
         omega_rad_s = (revs * 2.0 * PI) / dt_sec;
 
         prev_ticks = curr_ticks;
@@ -33,7 +33,7 @@ float Encoder::getOmega() {
 }
 
 long Encoder::getPosition() {
-    return getEncoderValue(encoder_id);
+    return init_ticks - getEncoderValue(encoder_id);
 }
 
 void Encoder::reset() {

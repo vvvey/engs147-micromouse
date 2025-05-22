@@ -3,15 +3,13 @@
 #include "IMU.h"
 #include "Encoder.h"
 #include "ArduinoMotorShieldR3.h"
-#include "ForwardControl.h"
+#include "MotionController.h"
 
-#define TS 10
-unsigned long prev_time_milli = 0;
-unsigned long start_time_milli = 0;
-unsigned long curr_time_milli = 0;
+#define RIGHT_IR A10
+#define LEFT_IR A8
+#define FRONT_IR A9
 
-ForwardControl forward;
-float nominal_heading = 0.0;
+MotionController motion;
 
 void setup() {
     Serial.begin(115200);
@@ -23,46 +21,35 @@ void setup() {
 
     Serial.println("Hello World");
 
-    forward.init(30.0); // Forward at 30 rad/s
-    nominal_heading = IMU_readZ(); // Capture initial heading
     delay(100);
 }
 
+
+int state = 0;
+
 void loop() {
-    start_time_milli = millis();
+    motion.update();
 
-    while (millis() - start_time_milli < 15000) {
-        curr_time_milli = millis(); 
-        if (curr_time_milli - prev_time_milli >= TS) {
-            prev_time_milli = curr_time_milli;
- 
-            // --- Front wall stop condition ---
-            float front_dist = IR_getDistance(FRONT_IR);
-            if (front_dist < 5) {
-                //forward.turnLeft(90.0, 30.0);   // turn left 90 degrees at 15 rad/s
-                forward.turnRight(90.0, 30.0);  // turn right 90 degrees at 15 rad/s 
-            } 
-            Serial.print("IMU Heading: ");
-            Serial.println(IMU_readZ(), 2);  // 2 decimal places
-
- 
-            // --- Side wall balancing ---
-            float left_dist = IR_getDistance(LEFT_IR);
-            float right_dist = IR_getDistance(RIGHT_IR); 
-            float diff = right_dist - left_dist;
-
-             
-            float drift_kp = 7.0;
-            if (abs(diff) < 0.1) diff = 0.0;
-
-            float angle_offset = constrain(diff * drift_kp, -15.0, 15.0);
-            forward.setReferenceAngle(nominal_heading + angle_offset);
-
-            forward.update();
+    if (!motion.isBusy()) {
+        if (state == 0) {
+            motion.fwd_2_dis(9.0, 50.0);
+            // motion.rotate(90); // turn right
+            state++;
+        } else if (state == 1) {
+            motion.rotate(-90); // turn left
+            state++;
+        } else if (state == 2) {
+            motion.fwd_2_dis(8.0, 30.0);
+            state++;
+        } else if (state == 3) {
+            motion.rotate(90); // turn right
+            state++;
+        } else if (state == 4) {
+            motion.fwd_2_dis(8.0, 40.0);
+            state++;
+        } else {
+            stop_motors();
+            exit(0);
         }
     }
-
-    motor_driver.setSpeeds(0, 0);
-    exit(0);
 }
-

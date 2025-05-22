@@ -1,19 +1,16 @@
-#ifndef FORWARD_CONTROL_H
-#define FORWARD_CONTROL_H
+#ifndef FORWARD_2_WALL_CONTROL_H
+#define FORWARD_2_WALL_CONTROL_H
 
 #include "Control.h"
 
-class ForwardControl : public Control {
+class Forward2WallControl : public Control {
 public:
-    ForwardControl();
-    void init(float omega); 
-    void init() override;      
+    Forward2WallControl();
+    void init() override;     
+    void init(float dis2wall, float omega);  
     void update() override;
     bool isFinished() override;
-    void setReferenceAngle(float angle);
-    void turnLeft(float degrees, float omega);
-    void turnRight(float degrees, float omega);
-
+    int getTSMillis() override;
 
 private:
     unsigned long prev_time_ms = 0;
@@ -38,7 +35,10 @@ private:
 
     float angle_err = 0.0;
 
-    bool done = true;
+    bool done = false;
+    int ts = 10;
+
+    float dis2wall = 0.0;
 };
 
 #endif
