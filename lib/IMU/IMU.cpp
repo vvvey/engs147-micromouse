@@ -6,7 +6,7 @@ void IMU_init(){
     I2C.begin();
     mySensor.initSensor(0x28);                      // Device address, power and reset
     mySensor.setOperationMode(OPERATION_MODE_NDOF); // Full sensor fusion mode
-    mySensor.setUpdateMode(AUTO);                   // Auto updates
+    mySensor.setUpdateMode(AUTO);
 }
 
 float IMU_readZ(){

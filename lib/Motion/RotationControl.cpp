@@ -6,24 +6,23 @@
 #include "RotationControl.h"
 
 RotationControl rot_ctrl;
+float compensator(float err_0, float err_1, float voltage_1);
 
 // Define the RotationControl class
 RotationControl::RotationControl() {}
 
-void RotationControl::init(float angle, float omega) { // cw positive, ccw negative angle
+void RotationControl::init(float heading_deg, float omega) { // cw positive, ccw negative angle
     stop_motors();
-    ref_angle = IMU_readZ() + angle;
+    ref_angle = heading_deg;
     if (ref_angle > 180) ref_angle -= 360;
     if (ref_angle < -180) ref_angle += 360;
 
     leftEnc.reset();
     rightEnc.reset();
-    prev_time_ms = millis();
-    start_time_ms = prev_time_ms;
     done = false;
 
-    left_ref_omega = omega;
-    right_ref_omega = omega;
+    stable_count = 0;
+    integral_sum = 0.0;
 
     Serial.print("ref_angle: ");
     Serial.println(ref_angle);
@@ -35,51 +34,54 @@ void RotationControl::init() {return;}
 void RotationControl::update() {
     // Sensor readings
     curr_angle = IMU_readZ();
-    left_curr_omega = leftEnc.getOmega();
-    right_curr_omega = rightEnc.getOmega();
 
-    // Angle error
-    angle_err = ref_angle - curr_angle;
-    if (angle_err > 180.0) angle_err -= 360.0;
-    else if (angle_err < -180.0) angle_err += 360.0;
 
-    // Control gains
-    float angle_kp = 0.13;   // proportional gain on angle error
-    float omega_kd = 0.06;   // damping gain to balance motors
+    // Update previous values
+    ctrl_1 = ctrl_0;
+    angle_err_1 = angle_err_0;
 
-    // Base control from angle error
-    float angle_ctrl_voltage = angle_err * angle_kp;
+    // PI control
+    angle_err_0 = ref_angle - curr_angle;
+    if (angle_err_0 > 180.0) angle_err_0 -= 360.0;
+    else if (angle_err_0 < -180.0) angle_err_0 += 360.0;
 
-    // Differential omega term (damping)
-    float omega_err = (right_curr_omega + left_curr_omega); // should cancel if symmetric
-    float damping_voltage = omega_err * omega_kd;
 
-    // Final voltages
-    left_ctrl_voltage = angle_ctrl_voltage - damping_voltage;
-    right_ctrl_voltage = angle_ctrl_voltage - damping_voltage;
+    float kp = 0.04;
+    float ki = 0.005;
+    if (abs(angle_err_0) < 45) {
+        integral_sum += angle_err_0*5.0;  // sum over time
+    } else {
+        integral_sum += angle_err_0/5.0;  // sum over time
+    }
+    
 
-    set_left_motor_voltage(left_ctrl_voltage);
-    set_right_motor_voltage(right_ctrl_voltage);
+    // Anti-windup: clamp integral to prevent overflow
+    if (integral_sum > 1000) integral_sum = 1000;
+    if (integral_sum < -1000) integral_sum = -1000;
+
+    // ctrl_0 = kp * angle_err_0 + ki * integral_sum;
+
+    ctrl_0 = compensator(angle_err_0, angle_err_1, ctrl_1); 
+    
+    // if (ctrl_0 > 0 && ctrl_0 < 5.2) ctrl_0 = 5.2;
+    // if (ctrl_0 < 0 && ctrl_0 > -5.2) ctrl_0 = -5.2;
+
+    set_left_motor_voltage(ctrl_0);
+    set_right_motor_voltage(ctrl_0);
 
     // Check if the rotation is finished
-    if (abs(angle_err) < 5.0) {
+    float delta_angle = angle_err_0 - angle_err_1;
+    if (abs(angle_err_0) < 5.0 && abs(delta_angle) < 0.5) {
+    stable_count++;
+    } else {
+        stable_count = 0;
+    }
+
+    if (stable_count >= 10) {  // must be stable for 3 cycles
         done = true;
         stop_motors();
         return;
     }
-
-    Serial.print("angle_err: ");
-    Serial.print(angle_err);
-    Serial.print(" left_omega_err: ");
-    Serial.print(left_omega_err);
-    Serial.print(" right_omega_err: ");
-    Serial.print(right_omega_err);
-    Serial.print(" left_ctrl_voltage: ");
-    Serial.print(left_ctrl_voltage);
-    Serial.print(" right_ctrl_voltage: ");
-    Serial.println(right_ctrl_voltage);
-    
-
 
 }
 
@@ -89,4 +91,13 @@ bool RotationControl::isFinished() {
 
 int RotationControl::getTSMillis() {
     return 10;
+}
+
+
+float compensator(float err_0, float err_1, float voltage_1) { // LEAD
+    float a = 2.161;
+    float b = -1.873;
+    float c = 0.4205;
+
+    return a * err_0 + b * err_1 + c * voltage_1;
 }

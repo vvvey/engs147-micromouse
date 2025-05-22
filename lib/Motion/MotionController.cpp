@@ -22,8 +22,8 @@ void MotionController::update() {
     }
 }
 
-void MotionController::fwd_2_dis(float distance, float max_omega) {
-    fwd_2_wall_ctrl.init(distance, max_omega);
+void MotionController::fwd_to_wall(float heading, float distance, float max_omega) {
+    fwd_2_wall_ctrl.init(heading, distance, max_omega);
     current_control = &fwd_2_wall_ctrl;
     last_update_time_ms = millis();
 }

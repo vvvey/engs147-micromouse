@@ -20,22 +20,14 @@ class RotationControl : public Control {
         float prev_angle = 0.0;
         float curr_angle = 0.0;
 
-        float right_ref_omega = 0.0;
-        float left_ref_omega = 0.0;
-        float right_prev_omega = 0.0;
-        float left_prev_omega = 0.0;
+        float angle_err_0 = 0.0;
+        float angle_err_1 = 0.0;
 
-        float right_curr_omega = 0.0;
-        float left_curr_omega = 0.0;
+        float ctrl_0 = 0.0;
+        float ctrl_1 = 0.0;
 
-        unsigned long prev_time_ms = 0;
-        unsigned long start_time_ms = 0;
-        unsigned long curr_time_ms = 0;
-        float left_omega_err = 0.0;
-        float right_omega_err = 0.0;
-        float angle_err = 0.0;
-        float left_ctrl_voltage = 0.0;
-        float right_ctrl_voltage = 0.0;
+        int stable_count = 0;
+        float integral_sum = 0.0;
 };
 
 #endif

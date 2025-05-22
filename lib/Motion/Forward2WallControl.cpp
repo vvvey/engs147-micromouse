@@ -14,10 +14,10 @@ Forward2WallControl fwd_2_wall_ctrl;
 // Control Feedback Layer
 Forward2WallControl::Forward2WallControl() {}
 
-void Forward2WallControl::init(float dis, float omega) {
+void Forward2WallControl::init(float heading, float dis, float omega) {
     dis2wall =  dis;
     stop_motors();
-    ref_angle = IMU_readZ();
+    ref_angle = heading;
     leftEnc.reset();
     rightEnc.reset();
     prev_time_ms = millis();
@@ -48,11 +48,11 @@ void Forward2WallControl::update() {
     float left_ir = IR_getDistance(LEFT_IR);
     float right_ir = IR_getDistance(RIGHT_IR);
 
-    if (left_ir > 6.0 && right_ir < 6.0) {
+    if (left_ir > 7.0 && right_ir < 7.0) {
         left_ir = 9.0 - right_ir;
-    } else if (right_ir > 6.0 && left_ir < 6.0) {
+    } else if (right_ir > 7.0 && left_ir < 7.0) {
         right_ir = 9.0 - left_ir;
-    } else if (left_ir < 6.0 && right_ir < 6.0) {
+    } else if (left_ir < 7.0 && right_ir < 7.0) {
         left_ir = 0.0;
         right_ir = 0.0;
     }

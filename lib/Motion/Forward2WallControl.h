@@ -7,7 +7,7 @@ class Forward2WallControl : public Control {
 public:
     Forward2WallControl();
     void init() override;     
-    void init(float dis2wall, float omega);  
+    void init(float heading, float dis2wall, float omega);  
     void update() override;
     bool isFinished() override;
     int getTSMillis() override;
