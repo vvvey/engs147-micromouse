@@ -82,3 +82,7 @@ void RotationControl::update() {
 bool RotationControl::isFinished() {
     return done;
 }
+
+void RotationControl::logData() {
+    // 
+}

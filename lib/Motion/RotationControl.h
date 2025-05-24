@@ -9,6 +9,7 @@ class RotationControl : public Control {
         void init() override;
         void init(float angle, float max_omega);
         bool isFinished() override;
+        void logData() override;
         void update() override;
         int getTSMillis() override;
 
