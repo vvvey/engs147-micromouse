@@ -13,18 +13,20 @@ class RotationControl : public Control {
         int getTSMillis() override;
 
     private:
-        int ts = 10;
         bool done = false;
 
-        float ref_angle = 0.0;
+        float ref_angle;
+        float AWS;
         float prev_angle = 0.0;
         float curr_angle = 0.0;
 
         float angle_err_0 = 0.0;
         float angle_err_1 = 0.0;
+        float angle_err_2 = 0.0;
 
         float ctrl_0 = 0.0;
         float ctrl_1 = 0.0;
+        float ctrl_2 = 0.0;
 
         int stable_count = 0;
         float integral_sum = 0.0;
