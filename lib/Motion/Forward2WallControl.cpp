@@ -1,121 +1,170 @@
+// Control Feedback Layer
 #include "Forward2WallControl.h"
+#include "TOF.h"
 #include "Encoder.h"
-#include "IR.h"
 #include "IMU.h"
 #include "Motors.h"
 #include <Arduino.h>
 
-Forward2WallControl fwd_2_wall_ctrl;
-#define RIGHT_IR A10
-#define LEFT_IR A8
-#define FRONT_IR A9
+Forward2WallControl fwd_2_wall_ctrl; // Allow MotionController to extern
+
+#define TOF_RIGHT 0
+#define TOF_FRONT_RIGHT 1
+#define TOF_FRONT_LEFT 2
+#define TOF_LEFT 3
+
+float fast_omega_compensator(float e0, float e1, float e2, float v1, float v2) {
+    // Lead & I Compensator at 10ms sampling rate
+    float a = 0.1901;
+    float b = - 0.1801;
+    float c = 0.0;
+    float d = 1.0;
+    float e = 0;
+
+    // float a = 0.35;
+    // float b = 0.0;
+    // float c = 0.0;
+    // float d = 0.0;
+    // float e = 0.0;
+   
+    float u = a * e0 + b * e1 + c * e2 + d * v1 + e * v2;
+    return u;
+}
+// Four different compensators
+float exploring_acc_gc(float e0, float e1, float e2, float v1, float v2);
+float racing_acc_gc(float e0, float e1, float e2, float v1, float v2);
+float fast_omega_compensator(float e0, float e1, float v1);
+float fast_heading_compensator(float e0, float e1, float omega1);
+// float exploring_brake_gc();
+// float racing_break_gc();
 
 
-// Control Feedback Layer
-Forward2WallControl::Forward2WallControl() {}
+Forward2WallControl::Forward2WallControl() {
+    state = IDLE;
+    mode = EXPLORING;
+}
 
-void Forward2WallControl::init(float heading, float dis, float omega) {
-    dis2wall =  dis;
+void Forward2WallControl::init(float heading_deg, float dis_mm, float omega_rad_s) {
     stop_motors();
-    ref_angle = heading;
+
+    if (omega_rad_s < 30.0) mode = EXPLORING;
+    else mode = RACING;
+
+    state = IDLE;
+
+    // set target parameters
+    target_dis_mm =  dis_mm;
+    ref_heading = heading_deg;
+    l_ref_omega = omega_rad_s;
+    r_ref_omega = -omega_rad_s;
+
+    // reset 
     leftEnc.reset();
     rightEnc.reset();
-    prev_time_ms = millis();
-    start_time_ms = prev_time_ms;
     done = false;
 
-    left_ref_omega = omega;
-    right_ref_omega = -omega;
+    curr_time_ms = millis();
+    prev_time_ms = curr_time_ms;
+
+    loop_counter = 0;
+    // arr_size = 1000;
 }
 
 void Forward2WallControl::init() {return;} // ignore this
 
 void Forward2WallControl::update() {
-    if (IR_getDistance(FRONT_IR) < dis2wall) {
+    
+
+    float fl_dis_mm = TOF_getDistance(TOF_FRONT_LEFT);
+    float fr_dis_mm = TOF_getDistance(TOF_FRONT_RIGHT);
+    float avg_dis_mm = (fl_dis_mm + fr_dis_mm) / 2.0;
+    if (avg_dis_mm < 0.0) avg_dis_mm = 200.0;
+
+    if (avg_dis_mm < 80.0) {
+        stop_motors();
         done = true;
-        motor_driver.setSpeeds(0, 0);
         return;
     }
-
-    curr_time_ms = millis();
-
-    // Update Sensor Data
-    curr_angle = IMU_readZ();
-
-    left_curr_omega = leftEnc.getOmega();
-    right_curr_omega = rightEnc.getOmega();
-
-    float left_ir = IR_getDistance(LEFT_IR);
-    float right_ir = IR_getDistance(RIGHT_IR);
-
-    if (left_ir > 7.0 && right_ir < 7.0) {
-        left_ir = 9.0 - right_ir;
-    } else if (right_ir > 7.0 && left_ir < 7.0) {
-        right_ir = 9.0 - left_ir;
-    } else if (left_ir < 7.0 && right_ir < 7.0) {
-        left_ir = 0.0;
-        right_ir = 0.0;
-    }
-
-    // If left IR is closer to the wall, turn right
     
-    float ir_err = right_ir - left_ir;
 
+    // Outer loop update every 5 calls
+    if (loop_counter % 5 == 0) {
+        curr_heading = IMU_readZ(); // degrees
+        heading_err_1 = heading_err_0;
+        heading_err_0 = ref_heading - curr_heading;
 
-    // Error calculation
-    left_omega_err = left_ref_omega - left_curr_omega;
-    right_omega_err = right_ref_omega - right_curr_omega;
-    angle_err = ref_angle - curr_angle;
+        // Normalize angle error to [-180, 180]
+        if (heading_err_0 > 180.0) heading_err_0 -= 360.0;
+        if (heading_err_0 < -180.0) heading_err_0 += 360.0;
 
-    // Normalize angle error to [-180, 180]
-    if (angle_err > 180.0) {
-        angle_err -= 360.0;
-    } else if (angle_err < -180.0) {
-        angle_err += 360.0;
+    
+        heading_ctrl_0 = fast_heading_compensator(heading_err_0, heading_err_1, heading_ctrl_0);
+        heading_ctrl_0 = constrain(heading_ctrl_0, -12.0, 12.0); // in rad/s
     }
 
-    // Proportional Control
-    float angle_kp = 0.1;   
-    float omega_kp = 0.3;  
-    float ir_kp = 0.2;        
+    // Adjust omega targets with heading correction
 
-    float left_ctrl_voltage = left_omega_err * omega_kp + angle_err * angle_kp + ir_err * ir_kp;
-    float right_ctrl_voltage = right_omega_err * omega_kp + angle_err * angle_kp + ir_err * ir_kp;
+    float heading_ctrl_0 = 0.0;
+    
+    float l_omega_ref = l_ref_omega + heading_ctrl_0;
+    float r_omega_ref = r_ref_omega + heading_ctrl_0;
 
-    int left_pwm = voltage_to_pwm(left_ctrl_voltage);
-    int right_pwm = voltage_to_pwm(right_ctrl_voltage);
+    // Update motor omega and compute inner loop control
+    l_omega = leftEnc.getOmega();
+    r_omega = rightEnc.getOmega();
+
+    l_err_2 = l_err_1;
+    l_err_1 = l_err_0;
+    l_err_0 = l_omega_ref - l_omega;
+
+    r_err_2 = r_err_1;
+    r_err_1 = r_err_0;
+    r_err_0 = r_omega_ref - r_omega;
+
+    l_ctrl_2 = l_ctrl_1;
+    l_ctrl_1 = l_ctrl_0;
+    l_ctrl_0 = fast_omega_compensator(l_err_0, l_err_1, l_err_2, l_ctrl_1, l_ctrl_1);
+
+    r_ctrl_2 = r_ctrl_1;
+    r_ctrl_1 = r_ctrl_0;
+    r_ctrl_0 = fast_omega_compensator(r_err_0, r_err_1, r_err_2, r_ctrl_1, r_ctrl_1);
+
+    int left_pwm = voltage_to_pwm(l_ctrl_0);
+    int right_pwm = voltage_to_pwm(r_ctrl_0);
 
     motor_driver.setSpeeds(right_pwm, left_pwm);
+
     
-    // Save previous values 
-    prev_angle = curr_angle;
-    prev_time_ms = curr_time_ms;
-    left_prev_omega = left_curr_omega;
-    right_prev_omega = right_curr_omega;
+    curr_time_ms = millis();
+    if (loop_counter < arr_size) {
+        l_omega_arr[loop_counter] = l_omega;
+        r_omega_arr[loop_counter] = r_omega;
+        l_ctrl_arr[loop_counter] = l_ctrl_0;
+        r_ctrl_arr[loop_counter] = r_ctrl_0;
+        time_ms_arr[loop_counter] = curr_time_ms;
+    }
 
-    // For Debugging
-    // Serial.print("Left Omega: ");
-    // Serial.println(left_curr_omega);
-    // Serial.print(" Left Error: ");
-    // Serial.println(left_omega_err);
-    // Serial.print(" Left Voltage: ");
-    // Serial.println(left_ctrl_voltage);
+    loop_counter++;
+}
 
-    // Serial.print(" Right Omega: ");
-    // Serial.println(right_curr_omega);
-    // Serial.print(" Right Error: ");
-    // Serial.println(right_omega_err);
-    // Serial.print(" Right Voltage: ");
-    // Serial.println(right_ctrl_voltage);
-    
-    // Serial.print(" Angle: ");
-    // Serial.println(curr_angle);
-    // Serial.print(" Angle Error: ");
-    // Serial.println(angle_err);
-    // Serial.println("--------------------");
 
-    Serial.print("dis2wall: ");
-    Serial.println(dis2wall);
+void Forward2WallControl::logData() {
+    Serial.print("loop_counter: ");
+    Serial.println(loop_counter);
+    Serial.println("time, left, right, left_ctrl, right_ctrl");
+    for (int i = 0; i < arr_size; i++) {
+        Serial.print(time_ms_arr[i]);
+        Serial.print(", ");
+        Serial.print(l_omega_arr[i]);
+        Serial.print(", ");
+        Serial.print(r_omega_arr[i]);
+        Serial.print(", ");
+        Serial.print(l_ctrl_arr[i]);
+        Serial.print(", ");
+        Serial.println(r_ctrl_arr[i]);
+        delay(10);
+    }
+
 }
 
 bool Forward2WallControl::isFinished() {
@@ -123,6 +172,17 @@ bool Forward2WallControl::isFinished() {
 }
 
 int Forward2WallControl::getTSMillis() {
-    return ts;
+    return 10; // 50 milli seconds
 }
 
+
+
+float fast_heading_compensator(float e0, float e1, float omega1) {
+    // PI Compensator at 50ms sampling rate
+    float a =  0.419;
+    float b = -0.4174;
+    float c = 1.0;
+
+    float d_omega = a * e0 + b * e1 + c * omega1;
+    return d_omega;
+}

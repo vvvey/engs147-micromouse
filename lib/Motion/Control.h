@@ -7,6 +7,7 @@ class Control { // Abstract base class for all control classes
         virtual void update() = 0;
         virtual bool isFinished() = 0;
         virtual int getTSMillis() = 0;
+        virtual void logData() = 0;
     };
 
 #endif

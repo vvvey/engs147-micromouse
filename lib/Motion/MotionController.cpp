@@ -17,9 +17,28 @@ void MotionController::update() {
         last_update_time_ms = now;
 
         if (current_control->isFinished()) {
+            // wait until button is pressed
+            while (digitalRead(30) == HIGH) { // log button
+                delay(10);
+            }
+            current_control->logData();
             current_control = nullptr;
         }
     }
+}
+
+void MotionController::logData() {
+    if (!current_control) {
+        Serial.println("No control active");
+        return;
+    }
+
+    if (!current_control->isFinished()) {
+        Serial.println("Control is still active");
+        return;
+    }
+
+    current_control->logData();
 }
 
 void MotionController::fwd_to_wall(float heading, float distance, float max_omega) {
@@ -29,7 +48,7 @@ void MotionController::fwd_to_wall(float heading, float distance, float max_omeg
 }
 
 void MotionController::rotate(float angle) {
-    rot_ctrl.init(angle, 30.0);  // assumes omega for now
+    rot_ctrl.init(angle, 30.0);  
     current_control = &rot_ctrl;
     last_update_time_ms = millis();
 }

@@ -37,7 +37,7 @@ long Encoder::getPosition() {
 }
 
 void Encoder::reset() {
-    init_ticks = prev_ticks;
+    init_ticks = getEncoderValue(encoder_id);
     omega_rad_s = 0;
     prev_time_ms = millis();
 }

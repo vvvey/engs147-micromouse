@@ -12,10 +12,10 @@ static void selectChannel(uint8_t channel) {
   Wire.beginTransmission(PCA9548A_ADDR);
   Wire.write(1 << channel);
   Wire.endTransmission();
-  delay(2);  // Allow channel switch to settle
+  delay(10);  // Allow channel switch to settle
 }
 
-void TOF_Init() {
+void TOF_init() {
   Wire.begin();
   for (uint8_t i = 0; i < NUM_VL6180_SENSORS; i++) {
     selectChannel(i);
@@ -42,4 +42,6 @@ float TOF_getDistance(uint8_t sensor_id) {
   } else {
     return -((float)status);  // Negative error code
   }
+
 }
+

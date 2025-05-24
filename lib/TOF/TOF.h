@@ -1,5 +1,5 @@
-#ifndef VL6180_IR_H
-#define VL6180_IR_H
+#ifndef TOF_H
+#define TOF_H
 
 #include <Arduino.h>
 

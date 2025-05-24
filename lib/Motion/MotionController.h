@@ -7,6 +7,7 @@ class MotionController {
 public:
     MotionController();
     void update();
+    void logData();
     void fwd_to_wall(float heading, float distance, float max_velocity);
     void rotate(float angle);
     bool isBusy();
