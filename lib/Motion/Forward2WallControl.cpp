@@ -13,43 +13,69 @@ Forward2WallControl fwd_2_wall_ctrl; // Allow MotionController to extern
 #define TOF_FRONT_LEFT 2
 #define TOF_LEFT 3
 
-float fast_omega_compensator(float e0, float e1, float e2, float v1, float v2) {
-    // Lead & I Compensator at 10ms sampling rate
-    float a = 0.1901;
-    float b = - 0.1801;
-    float c = 0.0;
-    float d = 1.0;
-    float e = 0;
+#define STOP_BTN 32
 
-    // float a = 0.35;
-    // float b = 0.0;
-    // float c = 0.0;
-    // float d = 0.0;
-    // float e = 0.0;
-   
-    float u = a * e0 + b * e1 + c * e2 + d * v1 + e * v2;
-    return u;
+
+float omega_compensator(float e0, float e1, float e2, float v1, float v2) {
+    // LEAD & I Compensator
+    //     Gcz =
+    //   0.08359 z^2 + 0.01801 z - 0.06558
+    //   ---------------------------------
+    //        z^2 - 1.026 z + 0.02577
+
+    // % specify compensator
+    // T = 0.05;
+    // K = 5.8169;
+    // Gc = tf([1 4.83],[1 37.99 0]);
+
+    float a = 0.08359;
+    float b = 0.01801;
+    float c = - 0.06558;
+    float d = 1.026;
+    float e = -0.02577;
+
+    return a * e0 + b * e1 + c * e2 + d * v1 + e * v2;
 }
-// Four different compensators
-float exploring_acc_gc(float e0, float e1, float e2, float v1, float v2);
-float racing_acc_gc(float e0, float e1, float e2, float v1, float v2);
-float fast_omega_compensator(float e0, float e1, float v1);
-float fast_heading_compensator(float e0, float e1, float omega1);
-// float exploring_brake_gc();
-// float racing_break_gc();
 
+
+float side_compensator(float e0, float e1) {
+    // PID
+    float kp = 0.0020;
+    float ki = 0.0022;    
+    float kd = 0.0022;
+    float dt = 0.05;     
+
+    static float integral = 0;
+
+    // Integrate error
+    integral += e0 * dt;
+
+    // Derivative
+    float derivative = (e0 - e1) / dt;
+
+    // PID output
+    return kp * e0 + ki * integral + kd * derivative;
+}
+
+
+float front_distance_compensator(float e0, float e1) {
+    float kp = 0.003; 
+    float kd = 0.0012;
+    float dt = 0.05;     
+
+    // Derivative
+    float derivative = (e0 - e1) / dt;
+
+    // PID output
+    return kp * e0 + kd * derivative;
+}
 
 Forward2WallControl::Forward2WallControl() {
     state = IDLE;
-    mode = EXPLORING;
 }
 
 void Forward2WallControl::init(float heading_deg, float dis_mm, float omega_rad_s) {
     stop_motors();
-
-    if (omega_rad_s < 30.0) mode = EXPLORING;
-    else mode = RACING;
-
     state = IDLE;
 
     // set target parameters
@@ -62,97 +88,174 @@ void Forward2WallControl::init(float heading_deg, float dis_mm, float omega_rad_
     leftEnc.reset();
     rightEnc.reset();
     done = false;
+    loop_counter = 0;
 
     curr_time_ms = millis();
     prev_time_ms = curr_time_ms;
 
-    loop_counter = 0;
-    // arr_size = 1000;
+    l_dis_err_0 = -target_dis_mm;
+    r_dis_err_0 = -target_dis_mm;
+
 }
 
 void Forward2WallControl::init() {return;} // ignore this
 
 void Forward2WallControl::update() {
-    
+    float front_left_tof = TOF_getDistance(TOF_FRONT_LEFT);
+    float front_right_tof = TOF_getDistance(TOF_FRONT_RIGHT);
 
-    float fl_dis_mm = TOF_getDistance(TOF_FRONT_LEFT);
-    float fr_dis_mm = TOF_getDistance(TOF_FRONT_RIGHT);
-    float avg_dis_mm = (fl_dis_mm + fr_dis_mm) / 2.0;
-    if (avg_dis_mm < 0.0) avg_dis_mm = 200.0;
 
-    if (avg_dis_mm < 80.0) {
+    if (front_left_tof < 0) front_left_tof = 200.0; 
+    if (front_right_tof < 0) front_right_tof = 200.0;
+
+    if (digitalRead(STOP_BTN) == LOW) {
         stop_motors();
+        // state = IDLE;
         done = true;
         return;
     }
-    
 
-    // Outer loop update every 5 calls
-    if (loop_counter % 5 == 0) {
-        curr_heading = IMU_readZ(); // degrees
-        heading_err_1 = heading_err_0;
-        heading_err_0 = ref_heading - curr_heading;
+    switch(state) {
+        case IDLE:
+            if (front_left_tof > 150.0 && front_right_tof > 150.0) {
+                // start moving
+                state = ACCELERATE;
+                // leftEnc.reset();
+                // rightEnc.reset();
+            } else {
+                state = BRAKING; 
+            }
 
-        // Normalize angle error to [-180, 180]
-        if (heading_err_0 > 180.0) heading_err_0 -= 360.0;
-        if (heading_err_0 < -180.0) heading_err_0 += 360.0;
+        case ACCELERATE:
+            // accelerate to steady state velocity
+            if (front_left_tof < 200.0 && front_right_tof < 200.0) {
+                state = BRAKING;
+                return;
+            }
 
-    
-        heading_ctrl_0 = fast_heading_compensator(heading_err_0, heading_err_1, heading_ctrl_0);
-        heading_ctrl_0 = constrain(heading_ctrl_0, -12.0, 12.0); // in rad/s
+        case BRAKING:
+            // slow down when see wall
+            if (front_left_tof <= target_dis_mm && front_right_tof <= target_dis_mm) {
+                done = true;
+                stop_motors();
+                // state = IDLE;
+                return;
+            }
+            break;
+        }
+
+     // ----------------------FRONT DISTANCE CONTROL_________________
+    l_dis_err_1 = l_dis_err_0;
+    l_dis_err_0 = front_left_tof - target_dis_mm;
+    l_dis_ctrl_0 = front_distance_compensator(l_dis_err_0, l_dis_err_1);
+
+
+    r_dis_err_1 = r_dis_err_0;
+    r_dis_err_0 = front_right_tof - target_dis_mm;
+    r_dis_ctrl_0 = front_distance_compensator(r_dis_err_0, r_dis_err_1);
+
+
+    if (state == BRAKING) {
+        l_ref_omega = -l_dis_err_0 * 0.0050f;
+        r_ref_omega = r_dis_err_0 * 0.0050f;
     }
-
-    // Adjust omega targets with heading correction
-
-    float heading_ctrl_0 = 0.0;
-    
-    float l_omega_ref = l_ref_omega + heading_ctrl_0;
-    float r_omega_ref = r_ref_omega + heading_ctrl_0;
-
-    // Update motor omega and compute inner loop control
+     // ----------------------OMEGA CONTROL_________________
     l_omega = leftEnc.getOmega();
     r_omega = rightEnc.getOmega();
 
     l_err_2 = l_err_1;
     l_err_1 = l_err_0;
-    l_err_0 = l_omega_ref - l_omega;
-
-    r_err_2 = r_err_1;
-    r_err_1 = r_err_0;
-    r_err_0 = r_omega_ref - r_omega;
+    l_err_0 = l_ref_omega - l_omega;
 
     l_ctrl_2 = l_ctrl_1;
     l_ctrl_1 = l_ctrl_0;
-    l_ctrl_0 = fast_omega_compensator(l_err_0, l_err_1, l_err_2, l_ctrl_1, l_ctrl_1);
+    l_ctrl_0 = omega_compensator(l_err_0, l_err_1, l_err_2, l_ctrl_1, l_ctrl_2);
+
+    
+    r_err_2 = r_err_1;
+    r_err_1 = r_err_0;
+    r_err_0 = r_ref_omega - r_omega;
 
     r_ctrl_2 = r_ctrl_1;
     r_ctrl_1 = r_ctrl_0;
-    r_ctrl_0 = fast_omega_compensator(r_err_0, r_err_1, r_err_2, r_ctrl_1, r_ctrl_1);
+    r_ctrl_0 = omega_compensator(r_err_0, r_err_1, r_err_2, r_ctrl_1, r_ctrl_2);
 
-    int left_pwm = voltage_to_pwm(l_ctrl_0);
-    int right_pwm = voltage_to_pwm(r_ctrl_0);
+   
+
+    // ----------------------SIDE CONTROL____________________
+
+    float alpha = 0.1f; // filter strength: lower = smoother
+    // side_tof_err = 0.0f; // persistent filtered value
+
+    float left_tof = TOF_getDistance(TOF_LEFT);
+    float right_tof = TOF_getDistance(TOF_RIGHT);
+
+    bool left_tof_valid = (left_tof > 0 && left_tof < 110);
+    bool right_tof_valid = (right_tof > 0 && right_tof < 110);
+
+    float offset = -13.0; // mm
+
+    if (left_tof_valid && right_tof_valid) {
+        side_tof_err_0 = right_tof - left_tof + offset;
+    } else if (right_tof_valid) {
+        side_tof_err_0 =  -1.0 * (100.0/2.0 - right_tof - offset/2.0);
+    } else if (left_tof_valid) {
+        side_tof_err_0 =  100.0/2.0 - left_tof + offset/2.0;  
+    } else {
+        side_tof_err_0 = 0.0;
+    }
+
+
+    // Low-pass filter
+    side_tof_err_1 = side_tof_err;
+    side_tof_err = alpha * side_tof_err_0 + (1.0f - alpha) * side_tof_err;
+
+    side_tof_ctrl_0 = side_compensator(side_tof_err, side_tof_err_1);
+
+    
+    // ------------------- SUMMING CONTROL____________________
+    float left_voltage = 0.0;
+    float right_voltage = 0.0;
+    
+    if (state == ACCELERATE) {
+        left_voltage =  l_ctrl_0 + side_tof_ctrl_0;
+        right_voltage = r_ctrl_0 + side_tof_ctrl_0;
+    } else if (state == BRAKING) {
+        left_voltage = l_ctrl_0;
+        right_voltage = r_ctrl_0;
+    }
+    
+
+    float left_pwm = voltage_to_pwm(left_voltage);
+    float right_pwm = voltage_to_pwm(right_voltage);
 
     motor_driver.setSpeeds(right_pwm, left_pwm);
 
-    
-    curr_time_ms = millis();
+
+    // Log Data
     if (loop_counter < arr_size) {
+        time_ms_arr[loop_counter] = millis();
         l_omega_arr[loop_counter] = l_omega;
         r_omega_arr[loop_counter] = r_omega;
-        l_ctrl_arr[loop_counter] = l_ctrl_0;
-        r_ctrl_arr[loop_counter] = r_ctrl_0;
-        time_ms_arr[loop_counter] = curr_time_ms;
+        l_ctrl_arr[loop_counter] = left_voltage;
+        r_ctrl_arr[loop_counter] = right_voltage;
+        heading_arr[loop_counter] = curr_heading;
+        heading_err_arr[loop_counter] = heading_err_0;
+        heading_ctrl_arr[loop_counter] = heading_ctrl_0;
     }
+    
 
     loop_counter++;
+
 }
 
+bool Forward2WallControl::isFinished() {
+    return done;
+}
 
 void Forward2WallControl::logData() {
-    Serial.print("loop_counter: ");
-    Serial.println(loop_counter);
-    Serial.println("time, left, right, left_ctrl, right_ctrl");
-    for (int i = 0; i < arr_size; i++) {
+    Serial.println("time_ms, l_omega, r_omega, l_ctrl, r_ctrl, heading, heading_err, heading_ctrl");
+    for (int i = 0; i < loop_counter; i++) {
         Serial.print(time_ms_arr[i]);
         Serial.print(", ");
         Serial.print(l_omega_arr[i]);
@@ -161,28 +264,19 @@ void Forward2WallControl::logData() {
         Serial.print(", ");
         Serial.print(l_ctrl_arr[i]);
         Serial.print(", ");
-        Serial.println(r_ctrl_arr[i]);
-        delay(10);
+        Serial.print(r_ctrl_arr[i]);
+        Serial.print(", ");
+        Serial.print(heading_arr[i]);
+        Serial.print(", ");
+        Serial.print(heading_err_arr[i]);
+        Serial.print(", ");
+        Serial.println(heading_ctrl_arr[i]);
     }
-
-}
-
-bool Forward2WallControl::isFinished() {
-    return done;
 }
 
 int Forward2WallControl::getTSMillis() {
-    return 10; // 50 milli seconds
+    return 50;
 }
 
 
 
-float fast_heading_compensator(float e0, float e1, float omega1) {
-    // PI Compensator at 50ms sampling rate
-    float a =  0.419;
-    float b = -0.4174;
-    float c = 1.0;
-
-    float d_omega = a * e0 + b * e1 + c * omega1;
-    return d_omega;
-}

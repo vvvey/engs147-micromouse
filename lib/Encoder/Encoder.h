@@ -16,7 +16,7 @@ private:
     float ticks_per_rev;
     long init_ticks;
     long prev_ticks;
-    unsigned long prev_time_ms;
+    unsigned long prev_ms;
     float omega_rad_s;
 };
 

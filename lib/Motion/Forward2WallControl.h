@@ -9,11 +9,6 @@ enum ControlState {
     BRAKING // slow down when see wall
 };
 
-enum ControlMode {
-    EXPLORING, // wheel speed at 20 rad/s
-    RACING //  
-};
-
 class Forward2WallControl : public Control {
 public:
     Forward2WallControl();
@@ -58,6 +53,8 @@ private:
     float curr_time_ms = 0.0;
 
     float side_dis_err_0 = 0.0;
+    float side_dis_err_1 = 0.0;
+
 
 
     bool done = false;
@@ -68,11 +65,11 @@ private:
     float heading_err_1 = 0.0;
     float heading_err_0 = 0.0;
     float heading_ctrl_0 = 0.0; // Heading output correction
+    float heading_ctrl_1 = 0.0; // Heading output correction
 
     ControlState state;
-    ControlMode mode;
 
-    static constexpr int arr_size = 500;
+    static constexpr int arr_size = 200;
     
     float l_omega_arr[arr_size];
     float r_omega_arr[arr_size];
@@ -80,7 +77,30 @@ private:
     float l_ctrl_arr[arr_size];
     float r_ctrl_arr[arr_size];
 
+    float heading_ctrl_arr[arr_size];
+    float heading_err_arr[arr_size];
+    float heading_arr[arr_size];
+
     long time_ms_arr[arr_size];
+    
+    float side_control = 0.0;
+
+
+    float l_dis_err_0 = 0.0;
+    float l_dis_err_1 = 0.0;
+    float l_dis_ctrl_0 = 0.0;
+    float l_dis_ctrl_1 = 0.0;
+
+    float r_dis_err_0 = 0.0;
+    float r_dis_err_1 = 0.0;
+    float r_dis_ctrl_0 = 0.0;
+    float r_dis_ctrl_1 = 0.0;
+
+    float side_tof_err_0 = 0.0;
+    float side_tof_ctrl_0 = 0.0;
+    float side_tof_err_1 = 0.0;
+    float side_tof_err = 0.0;
+
 
 
 };

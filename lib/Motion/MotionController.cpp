@@ -17,11 +17,11 @@ void MotionController::update() {
         last_update_time_ms = now;
 
         if (current_control->isFinished()) {
-            // wait until button is pressed
-            while (digitalRead(30) == HIGH) { // log button
-                delay(10);
-            }
-            current_control->logData();
+            // // wait until button is pressed
+            // while (digitalRead(30) == HIGH) { // log button
+            //     delay(10);
+            // }
+            // current_control->logData();
             current_control = nullptr;
         }
     }
