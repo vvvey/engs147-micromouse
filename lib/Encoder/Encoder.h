@@ -7,11 +7,17 @@ class Encoder {
 public:
     Encoder(int id, float ticks_per_rev);
     void begin();
+    void update();
     float getOmega();
-    long getPosition();
+    float getDis();
+    float getDeltaMM();
     void reset();
 
 private:
+    float omega;
+    float num_rev;
+    float delta_mm;
+    float total_mm;
     int encoder_id;
     float ticks_per_rev;
     long init_ticks;
