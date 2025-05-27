@@ -14,6 +14,7 @@ Encoder::Encoder(int id, float ticks_per_rev) {
     this->delta_mm = 0.0;
     this->num_rev = 0.0;
     this->total_mm = 0.0;
+    this->speedX = 0.0;
 }
 
 void Encoder::begin() {
@@ -36,6 +37,7 @@ void Encoder::update() {
         num_rev = (prev_ticks - curr_ticks) / ticks_per_rev;
         delta_mm = num_rev * WHEEL_RADIUS_MM * 2.0 * PI; // Convert revolutions to mm
         total_mm += delta_mm;
+        speedX = delta_mm / dt_sec; // Speed in mm/s
         omega_rad_s = (num_rev * 2.0 * PI) / dt_sec;
 
         prev_ticks = curr_ticks;
@@ -44,15 +46,19 @@ void Encoder::update() {
 }
 
 float Encoder::getOmega() {
-    return this->omega;
+    return this->omega_rad_s;
 }
 
 float Encoder::getDis() {
     return this->total_mm;
 }
 
-float Encoder::getDeltaMM() {
+float Encoder::getDeltaMM() {   
     return this->delta_mm;
+}
+
+float Encoder::getSpeedX() {
+    return this->speedX;
 }
 
 void Encoder::reset() {

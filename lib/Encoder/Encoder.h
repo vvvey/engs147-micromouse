@@ -10,6 +10,7 @@ public:
     void update();
     float getOmega();
     float getDis();
+    float getSpeedX();
     float getDeltaMM();
     void reset();
 
@@ -24,6 +25,7 @@ private:
     long prev_ticks;
     unsigned long prev_ms;
     float omega_rad_s;
+    float speedX;
 };
 
 extern Encoder rightEnc;

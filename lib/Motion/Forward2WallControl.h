@@ -12,94 +12,88 @@ enum ControlState {
 class Forward2WallControl : public Control {
 public:
     Forward2WallControl();
-    void init() override;     
-    void init(float heading, float dis2wall, float omega);  
+    void init() override;
+    void reset();    
+    void init(float heading,int dis_mm, float spdX, float spdW);  
     void update() override;
     void logData() override;
     bool isFinished() override;
     int getTSMillis() override;
 
 private:
-    // heading variables
-    float ref_heading = 0.0;
-    float prev_heading = 0.0;
-    float curr_heading = 0.0;
-    float heading_err = 0.0;
-
-    // left wheel
-    float l_ref_omega = 0.0;
-    float l_omega = 0.0;
-    float l_err_0 = 0.0;
-    float l_err_1 = 0.0;
-    float l_err_2 = 0.0;
-    float l_ctrl_0 = 0.0;
-    float l_ctrl_1 = 0.0;
-    float l_ctrl_2 = 0.0;
-
-    // right wheel
-    float r_ref_omega = 0.0;
-    float r_omega = 0.0;
-    float r_err_0 = 0.0;
-    float r_err_1 = 0.0;
-    float r_err_2 = 0.0;
-    float r_ctrl_0 = 0.0;
-    float r_ctrl_1 = 0.0;
-    float r_ctrl_2 = 0.0;
-
-    float side_ir_err_0 = 0.0;
-    float side_ir_err_1 = 0.0;
-    
-    float prev_time_ms = 0.0;
-    float curr_time_ms = 0.0;
-
-    float side_dis_err_0 = 0.0;
-    float side_dis_err_1 = 0.0;
-
-
-
+    int target_dis_mm;
     bool done = false;
+    float speedX;    
+    float current_dis_mm = 0.0;
 
-    float target_dis_mm = 0.0;
-
-    int loop_counter = 0; // Count how many times update() has run
-    float heading_err_1 = 0.0;
-    float heading_err_0 = 0.0;
-    float heading_ctrl_0 = 0.0; // Heading output correction
-    float heading_ctrl_1 = 0.0; // Heading output correction
-
-    ControlState state;
-
-    static constexpr int arr_size = 200;
+    float integral_error = 0.0;  
+    const float dt = 0.05;       // 50ms in seconds
     
-    float l_omega_arr[arr_size];
-    float r_omega_arr[arr_size];
+    const float WHEEL_BASE_MM = 81.0; // Adjust based on your robot
 
-    float l_ctrl_arr[arr_size];
-    float r_ctrl_arr[arr_size];
+    float prev_left_mm = 0.0;
+    float prev_right_mm = 0.0;
 
-    float heading_ctrl_arr[arr_size];
-    float heading_err_arr[arr_size];
-    float heading_arr[arr_size];
+    static constexpr int arr_size = 500;
+    float time[arr_size];
+    float left_speed[arr_size];
+    float left_ctrl[arr_size];
+    float right_speed[arr_size];
+    float right_ctrl[arr_size];
+    int index = 0;
 
-    long time_ms_arr[arr_size];
+    float target_heading = 0.0; 
+    float heading_err0 = 0.0; 
+    float heading_err1 = 0.0;
+    float heading_ctrl0 = 0.0;
+    float heading_ctrl1 = 0.0;
+    float heading_compensator(float curr_heading);
+
+
+
+
+    // speed compensator variables
+    float speedL_err0 = 0.0;
+    float speedL_err1 = 0.0;
+    float speedL_err2 = 0.0;
+    float speedL_ctrl0 = 0.0;
+    float speedL_ctrl1 = 0.0;
+    float speedL_ctrl2 = 0.0;
+    float speed_compensator_L(float target_speed = 0.0, float current_speed_L = 0.0);
     
-    float side_control = 0.0;
 
+    // right speed compensator variables
+    float speedR_err0 = 0.0;
+    float speedR_err1 = 0.0;
+    float speedR_err2 = 0.0;
+    float speedR_ctrl0 = 0.0;
+    float speedR_ctrl1 = 0.0;
+    float speedR_ctrl2 = 0.0;
+    float speed_compensator_R(float target_speed = 0.0, float current_speed_R = 0.0);
 
-    float l_dis_err_0 = 0.0;
-    float l_dis_err_1 = 0.0;
-    float l_dis_ctrl_0 = 0.0;
-    float l_dis_ctrl_1 = 0.0;
-
-    float r_dis_err_0 = 0.0;
-    float r_dis_err_1 = 0.0;
-    float r_dis_ctrl_0 = 0.0;
-    float r_dis_ctrl_1 = 0.0;
-
-    float side_tof_err_0 = 0.0;
-    float side_tof_ctrl_0 = 0.0;
-    float side_tof_err_1 = 0.0;
+    // side TOF variables
+    float side_tof_err0 = 0.0;
+    float side_tof_err1 = 0.0;
     float side_tof_err = 0.0;
+    float side_tof_ctrl_0 = 0.0;
+    float side_tof_ctrl_1 = 0.0;
+    float side_integral = 0.0;
+    float side_tof_compensator(float tof_L, float tof_R);
+
+    // front left TOF variables
+    float tof_FL_err0 = 0.0;
+    float tof_FL_err1 = 0.0;
+    float tof_FL_ctrl0 = 0.0;
+    float tof_FL_ctrl1 = 0.0;
+    float frontL_tof_compensator(float tof_front_left);
+
+    // front right TOF variables
+    float tof_FR_err0 = 0.0;
+    float tof_FR_err1 = 0.0;
+    float tof_FR_ctrl0 = 0.0;
+    float tof_FR_ctrl1 = 0.0;
+    float frontR_tof_compensator(float tof_front_right);
+
 
 
 

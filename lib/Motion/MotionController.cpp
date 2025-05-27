@@ -7,8 +7,11 @@
 extern Forward2WallControl fwd_2_wall_ctrl;
 extern Forward2DisControl fwd_2_dis_ctrl;
 extern RotationControl rot_ctrl;
+// Forward2WallControl fwd;
 
-MotionController::MotionController() {}
+MotionController::MotionController() {
+    delete fwd_wall_ptr;
+}
 
 void MotionController::update() {
     if (!current_control) return;
@@ -24,6 +27,7 @@ void MotionController::update() {
             // }
             // current_control->logData();
             current_control = nullptr;
+            
         }
     }
 }
@@ -42,21 +46,39 @@ void MotionController::logData() {
     current_control->logData();
 }
 
-void MotionController::fwd_to_wall(float heading, float distance, float max_omega) {
-    fwd_2_wall_ctrl.init(heading, distance, max_omega);
-    current_control = &fwd_2_wall_ctrl;
+void MotionController::fwd_to_wall(float heading, float  dis_mm, float speedx, float speedw) {
+    // Reset fwd_2_wall_ctrl by creating a new instance and replacing the old one
+    if (fwd_wall_ptr) {
+        delete fwd_wall_ptr; // Clean up old instance
+    }
+
+    fwd_wall_ptr = new Forward2WallControl(); // Allocate a new one
+    fwd_wall_ptr->init(heading, dis_mm, speedx, speedw);
+    current_control = fwd_wall_ptr;
+
     last_update_time_ms = millis();
 }
 
-void MotionController::fwd_to_dis(int distance_mm, int heading) {
-    fwd_2_dis_ctrl.init(distance_mm, heading);
-    current_control = &fwd_2_dis_ctrl;
+void MotionController::fwd_to_dis(int distance_mm) {
+    // Reset fwd_2_dis_ctrl by creating a new instance and replacing the old one
+    if (fwd_dis_ptr) {
+        delete fwd_dis_ptr; // Clean up old instance
+    }
+    fwd_dis_ptr = new Forward2DisControl(); // Allocate a new one
+    fwd_dis_ptr->init(distance_mm);
+    current_control = fwd_dis_ptr;
     last_update_time_ms = millis();
 }
 
 void MotionController::rotate(float angle) {
-    rot_ctrl.init(angle, 30.0);  
-    current_control = &rot_ctrl;
+    // RotationControl rot_ctrl;
+    // Reset rot_ctrl by creating a new instance and replacing the old one
+    if (rot_ptr) {
+        delete rot_ptr; // Clean up old instance
+    }
+    rot_ptr = new RotationControl();
+    rot_ptr->init(angle, 30.0);
+    current_control = rot_ptr;
     last_update_time_ms = millis();
 }
 
