@@ -31,6 +31,18 @@ class RotationControl : public Control {
 
         int stable_count = 0;
         float integral_sum = 0.0;
+
+        int loop_counter;
+
+        static constexpr int arr_size = 500;
+    
+        float time[arr_size];
+        float angle[arr_size];
+
+        float error[arr_size];
+        float controleffort[arr_size];
+
+        int compensator_id = 0;
 };
 
 #endif
