@@ -1,9 +1,11 @@
 #include "MotionController.h"
 #include "Forward2WallControl.h"
+#include "Forward2DisControl.h"
 #include "RotationControl.h"
 #include "Arduino.h"
 
 extern Forward2WallControl fwd_2_wall_ctrl;
+extern Forward2DisControl fwd_2_dis_ctrl;
 extern RotationControl rot_ctrl;
 
 MotionController::MotionController() {}
@@ -43,6 +45,12 @@ void MotionController::logData() {
 void MotionController::fwd_to_wall(float heading, float distance, float max_omega) {
     fwd_2_wall_ctrl.init(heading, distance, max_omega);
     current_control = &fwd_2_wall_ctrl;
+    last_update_time_ms = millis();
+}
+
+void MotionController::fwd_to_dis(int distance_mm) {
+    fwd_2_dis_ctrl.init(distance_mm);
+    current_control = &fwd_2_dis_ctrl;
     last_update_time_ms = millis();
 }
 
