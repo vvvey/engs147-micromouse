@@ -5,6 +5,7 @@
 #include "IMU.h"
 #include "Motors.h"
 #include <Arduino.h>
+#include "compensators.h"
 
 Forward2WallControl fwd_2_wall_ctrl; // Allow MotionController to extern
 
@@ -15,60 +16,6 @@ Forward2WallControl fwd_2_wall_ctrl; // Allow MotionController to extern
 
 #define STOP_BTN 32
 
-
-float omega_compensator(float e0, float e1, float e2, float v1, float v2) {
-    // LEAD & I Compensator
-    //     Gcz =
-    //   0.08359 z^2 + 0.01801 z - 0.06558
-    //   ---------------------------------
-    //        z^2 - 1.026 z + 0.02577
-
-    // % specify compensator
-    // T = 0.05;
-    // K = 5.8169;
-    // Gc = tf([1 4.83],[1 37.99 0]);
-
-    float a = 0.08359;
-    float b = 0.01801;
-    float c = - 0.06558;
-    float d = 1.026;
-    float e = -0.02577;
-
-    return a * e0 + b * e1 + c * e2 + d * v1 + e * v2;
-}
-
-
-float side_compensator(float e0, float e1) {
-    // PID
-    float kp = 0.0020;
-    float ki = 0.0022;    
-    float kd = 0.0022;
-    float dt = 0.05;     
-
-    static float integral = 0;
-
-    // Integrate error
-    integral += e0 * dt;
-
-    // Derivative
-    float derivative = (e0 - e1) / dt;
-
-    // PID output
-    return kp * e0 + ki * integral + kd * derivative;
-}
-
-
-float front_distance_compensator(float e0, float e1) {
-    float kp = 0.003; 
-    float kd = 0.0012;
-    float dt = 0.05;     
-
-    // Derivative
-    float derivative = (e0 - e1) / dt;
-
-    // PID output
-    return kp * e0 + kd * derivative;
-}
 
 Forward2WallControl::Forward2WallControl() {
     state = IDLE;

@@ -23,6 +23,7 @@ void setup() {
     rightEnc.begin();
     leftEnc.begin();
     motor_driver.init();
+    IMU_init();
 
     Serial.println("Hello World");
 
@@ -36,24 +37,22 @@ void setup() {
 
 int state = 0;
 bool run = false;
+float curr_heading_main = IMU_readZ();
 
 void loop() {
-    if (digitalRead(START_BTN) == LOW) {
+    if (digitalRead(START_BTN) == LOW) { 
         Serial.println("Start Button Pressed");
         run = true;
-        delay(500);
+        delay(500);    
     }
-
+ 
     if (run) {
         motion.update();
 
-        if (!motion.isBusy()) {
+        if (!motion.isBusy()) { 
             if (state == 0) {
-                motion.fwd_to_wall(NORTH, 30.0, 30.0);
-                state++;
-                delay(500);
-            } else if (state == 1) {
-                motion.rotate(EAST);
+                motion.fwd_to_dis(1500, round(curr_heading_main)); 
+                motion.logData();
                 state++;
                 delay(500);
             }

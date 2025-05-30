@@ -7,7 +7,7 @@ class Forward2DisControl : public Control {
 public:
     Forward2DisControl();
     void init() override;
-    void init(int dis_mm);
+    void init(int dis_mm, int heading);
     void update() override;
     bool isFinished() override;
     void logData() override;
@@ -34,6 +34,11 @@ private:
     float side_tof_err_0 = 0.0f;
     float side_tof_err_1 = 0.0f;
     float side_tof_ctrl_0 = 0.0f;
+    float ref_heading = 0.0f;
+    float curr_heading = 0.0f;
+    float heading_err_0 = 0.0f;
+    float heading_err_1 = 0.0f;
+    float heading_ctrl_0 = 0.0f;
 
     // Logging
     static const int arr_size = 1000;
