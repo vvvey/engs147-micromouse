@@ -107,8 +107,8 @@ float Forward2WallControl::frontL_tof_compensator(float tof_front_left) {
     if (tof_front_left < 0) tof_front_left = 200.0;
 
     // PI controller gains
-    float Kp = 0.05;  
-    float Ki = 0.1;  
+    float Kp = 0.026;  
+    float Ki = 0.03;  
     float T = 0.02;   // Control loop period in seconds
 
     tof_FL_err0 = tof_front_left - target_dis_mm;
@@ -127,8 +127,8 @@ float Forward2WallControl::frontR_tof_compensator(float tof_front_right) {
     if (tof_front_right < 0) tof_front_right = 200.0;
 
     // PI controller gains
-    float Kp = 0.05;
-    float Ki = 0.1;
+    float Kp = 0.03;
+    float Ki = 0.04;
     float T = 0.02;   // Control loop period in seconds
 
     tof_FR_err0 = tof_front_right - target_dis_mm - 8.0;
@@ -218,6 +218,7 @@ void Forward2WallControl::update() {
         }
 
         case DISTANCE: {
+
             tof_FL = TOF_getDistance(TOF_FRONT_LEFT);
             tof_FR = TOF_getDistance(TOF_FRONT_RIGHT);
 
@@ -234,7 +235,15 @@ void Forward2WallControl::update() {
             float pwmR = voltage_to_pwm180(-vR);
 
             motor_driver.setSpeeds(pwmR, pwmL);
+            
+            // unsigned curtime = millis();
+            // time[index] = curtime;
+            // left_tof[index] = tof_FL;
+            // right_tof[index] = tof_FR;
+            // left_ctrl[index] = vL;
+            // right_ctrl[index] = vR;
             break;
+            
         }
     }
 
@@ -251,20 +260,25 @@ bool Forward2WallControl::isFinished() {
 }
 
 void Forward2WallControl::logData() {
-    Serial.println("Time, Left Speed, Right Speed");
-    for (int i = 0; i < index; i++) {
-        Serial.print(time[i]);
-        Serial.print(", ");
-        Serial.print(left_speed[i]);
-        Serial.print(", ");
-        Serial.println(right_speed[i]);
-    }
-    Serial.println("End of Data");
+    // Serial.println("Time, Left Speed, Right Speed");
+    // for (int i = 0; i < index; i++) {
+    //     Serial.print(time[i]);
+    //     Serial.print(", ");
+    //     Serial.print(left_tof[i]);
+    //     Serial.print(", ");
+    //     Serial.print(left_ctrl[i]);
+    //     Serial.print(", ");
+    //     Serial.print(right_tof[i]);
+    //     Serial.print(", ");
+    //     Serial.println(right_ctrl[i]);
+    // }
+    // Serial.println("End of Data");
     
 }
 
 int Forward2WallControl::getTSMillis() {
     return 20;
 }
+
 
 

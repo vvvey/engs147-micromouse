@@ -33,9 +33,9 @@ private:
 
     static constexpr int arr_size = 500;
     float time[arr_size];
-    float left_speed[arr_size];
+    float left_tof[arr_size];
     float left_ctrl[arr_size];
-    float right_speed[arr_size];
+    float right_tof[arr_size];
     float right_ctrl[arr_size];
     int index = 0;
 
