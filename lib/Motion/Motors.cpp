@@ -22,8 +22,8 @@ int voltage_to_pwm(float voltage) {
         pwm = 0;
     }
 
-    if (pwm > 0 && pwm < 120) pwm = 120;
-    if (pwm < 0 && pwm > -120) pwm = -120;
+    if (pwm > 0 && pwm < 35) pwm = 35;
+    if (pwm < 0 && pwm > -35) pwm = -35;
 
     if (pwm > 400.0) pwm = 400.0;
     if (pwm < -400.0) pwm = -400.0;

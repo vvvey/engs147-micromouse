@@ -5,13 +5,14 @@
 
 enum ControlState {
     IDLE, // do nothing
-    ACCELERATE, // accelerate to steady state velocity
-    BRAKING // slow down when see wall
+    CONSTANT_SPEED, // constant speed mode
+    DISTANCE // move to wall 
 };
 
 class Forward2WallControl : public Control {
 public:
     Forward2WallControl();
+
     void init() override;
     void reset();    
     void init(float heading,int dis_mm, float spdX, float spdW);  
@@ -19,8 +20,10 @@ public:
     void logData() override;
     bool isFinished() override;
     int getTSMillis() override;
-
 private:
+
+    ControlState state; // Control state, initialized in constructor
+    
     int target_dis_mm;
     bool done = false;
     float speedX;    
@@ -49,7 +52,7 @@ private:
     float heading_ctrl1 = 0.0;
     float heading_compensator(float curr_heading);
 
-
+    float heading_control = 0.0;
 
 
     // speed compensator variables
@@ -79,8 +82,10 @@ private:
     float side_tof_ctrl_1 = 0.0;
     float side_integral = 0.0;
     float side_tof_compensator(float tof_L, float tof_R);
+    float side_control = 0.0;
 
     // front left TOF variables
+    float tof_FL = 0.0;
     float tof_FL_err0 = 0.0;
     float tof_FL_err1 = 0.0;
     float tof_FL_ctrl0 = 0.0;
@@ -88,6 +93,7 @@ private:
     float frontL_tof_compensator(float tof_front_left);
 
     // front right TOF variables
+    float tof_FR = 0.0;
     float tof_FR_err0 = 0.0;
     float tof_FR_err1 = 0.0;
     float tof_FR_ctrl0 = 0.0;

@@ -111,7 +111,7 @@ void RotationControl::update() {
 
     loop_counter++;
 
-    if (abs(angle_err_0) < 3) {
+    if (abs(angle_err_0) < 3 and abs(angle_err_1) < 3 and abs(angle_err_2) < 3) {
         done = true;
         stop_motors();
     }

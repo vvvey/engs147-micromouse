@@ -45,20 +45,85 @@ void loop() {
         run = true;
         delay(500);    
     }
- 
+
+    if (digitalRead(STOP_BTN) == LOW) {
+        stop_motors();
+        exit(0);
+    }
+
     if (run) {
         motion.update();
 
         if (!motion.isBusy()) { 
             if (state == 0) {
-                motion.fwd_to_dis(1500, round(curr_heading_main)); 
-                motion.logData();
+                motion.fwd_to_wall(NORTH, 40, 450.0, 0.0); // Move forward to wall
+                state++;
+                delay(500);
+            } else if (state == 1) {
+                motion.rotate(WEST);
+                state++;
+                delay(500);
+            } else if (state == 2) {
+                motion.fwd_to_wall(WEST, 40, 450.0, 0.0); // Move forward to wall
+                state++;
+                delay(500);
+            } else if (state == 3) {
+                motion.rotate(SOUTH);
+                state++;
+                delay(500);
+            } else if (state == 4) {
+                motion.fwd_to_wall(SOUTH, 40, 450.0, 0.0); // Move forward to wall
+                state++;
+                delay(500);
+            } else if (state == 5) {
+                motion.rotate(WEST);
+                state++;
+                delay(500);
+            } else if (state == 6) {
+                motion.fwd_to_wall(WEST, 40, 450.0, 0.0); // Move forward to wall
+                state++;
+                delay(500);
+            } else if (state == 7) {
+                motion.rotate(EAST);
+                state++; 
+                delay(500);
+            } else if (state == 8) {
+                motion.fwd_to_wall(EAST, 40, 450.0, 0.0); // Move forward to wall
+                state++;
+                delay(500);
+            } else if (state == 9) {
+                motion.rotate(NORTH);
+                state++;
+                delay(500);
+            } else if (state == 10) {
+                motion.fwd_to_wall(NORTH, 40, 450.0, 0.0); // Move forward to a distance of 100mm
+                state++;
+                delay(500);
+            } else if (state == 11) {
+                motion.rotate(EAST);
+                state++;
+                delay(500);
+            }
+            else if (state == 12) {
+                motion.fwd_to_wall(EAST, 40, 450.0, 0.0); 
+                state++;
+                delay(500);
+            } else if (state == 13) {
+                motion.rotate(SOUTH);
+                state++;
+                delay(500);
+            } else if (state == 14) {
+                motion.fwd_to_wall(SOUTH, 40, 450.0, 0.0); 
+                state++;
+                delay(500);
+            } else if (state == 15) {
+                motion.rotate(NORTH);
                 state++;
                 delay(500);
             }
             else {
                 stop_motors();
-                exit(0);
+                // exit(0);
             }
         }
     }

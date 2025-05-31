@@ -59,13 +59,13 @@ void MotionController::fwd_to_wall(float heading, float  dis_mm, float speedx, f
     last_update_time_ms = millis();
 }
 
-void MotionController::fwd_to_dis(int distance_mm) {
+void MotionController::fwd_to_dis(int distance_mm, int heading) {
     // Reset fwd_2_dis_ctrl by creating a new instance and replacing the old one
     if (fwd_dis_ptr) {
         delete fwd_dis_ptr; // Clean up old instance
     }
     fwd_dis_ptr = new Forward2DisControl(); // Allocate a new one
-    fwd_dis_ptr->init(distance_mm);
+    fwd_dis_ptr->init(distance_mm, heading);
     current_control = fwd_dis_ptr;
     last_update_time_ms = millis();
 }
