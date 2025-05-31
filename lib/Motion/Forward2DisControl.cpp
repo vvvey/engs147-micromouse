@@ -147,37 +147,35 @@ void Forward2DisControl::update() {
         side_control = side_tof_compensator(tof_L, tof_R);
     }
 
-    // checking if the robot should switch to distance control
-    if (state == CONSTANT_SPEED) {
-        if ((target_dis_mm - left_dis) < 180 && (target_dis_mm - right_dis) < 180) {
-            stop_motors();
-            state = DISTANCE; 
-            delay(1000); // Wait for 1 second
-        }
-    }
-
     float vL = 0.0;
     float vR = 0.0;
+    float dealth_rec = 1.01;
 
-    switch (state) {
-        case CONSTANT_SPEED: {
-            float base_control_L = speed_compensator_L(speedX + heading_control + side_control, left_speed);
-            float base_control_R = speed_compensator_R(speedX - heading_control - side_control, right_speed);
+    float remaining_dis = 0.5f * ((target_dis_mm * dealth_rec - left_dis) + (target_dis_mm * dealth_rec - right_dis));
 
-            vL = base_control_L;
-            vR = base_control_R;
+    // Trapezoidal deceleration: Linearly scale down speed as it nears target
+    float min_speed = 50.0;   // mm/s, avoid stalling
+    float max_speed = speedX; // original set speed
+    float slow_down_distance = 200.0;  // start slowing down within 250 mm
 
-            float pwmL = voltage_to_pwm(vL);
-            float pwmR = voltage_to_pwm(-vR);
-
-            motor_driver.setSpeeds(pwmR, pwmL);
-        }
-
-        case DISTANCE: {
-            
-        }
+    float scaled_speed = max_speed;
+    if (remaining_dis < slow_down_distance) {
+        scaled_speed = min_speed + (max_speed - min_speed) * (remaining_dis / slow_down_distance);
     }
 
+    // Use same heading/side control as before
+    float base_control_L = speed_compensator_L(scaled_speed + heading_control + side_control, left_speed);
+    float base_control_R = speed_compensator_R(scaled_speed - heading_control - side_control, right_speed);
+
+    float pwmL = voltage_to_pwm(base_control_L);
+    float pwmR = voltage_to_pwm(-base_control_R);
+
+    motor_driver.setSpeeds(pwmR, pwmL);
+
+    if (abs(remaining_dis) < 5.0) { // If within 10 mm of target distance
+        stop_motors();
+        done = true;
+    }
 
     index++;
 }
