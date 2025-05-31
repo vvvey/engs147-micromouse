@@ -154,9 +154,9 @@ void Forward2DisControl::update() {
     float remaining_dis = 0.5f * ((target_dis_mm * dealth_rec - left_dis) + (target_dis_mm * dealth_rec - right_dis));
 
     // Trapezoidal deceleration: Linearly scale down speed as it nears target
-    float min_speed = 50.0;   // mm/s, avoid stalling
+    float min_speed = 60.0;   // mm/s, avoid stalling
     float max_speed = speedX; // original set speed
-    float slow_down_distance = 200.0;  // start slowing down within 250 mm
+    float slow_down_distance = 250.0;  // start slowing down within 250 mm
 
     float scaled_speed = max_speed;
     if (remaining_dis < slow_down_distance) {
@@ -172,7 +172,7 @@ void Forward2DisControl::update() {
 
     motor_driver.setSpeeds(pwmR, pwmL);
 
-    if (abs(remaining_dis) < 5.0) { // If within 10 mm of target distance
+    if (abs(remaining_dis) < 10.0) { // If within 10 mm of target distance or very slow
         stop_motors();
         done = true;
     }

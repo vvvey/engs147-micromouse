@@ -18,7 +18,7 @@ int RotationControl::getTSMillis() {
 
 float compensator90(float e0, float e1, float e2, float v1, float v2) {
   float A = 0.110963541666667;     // For e_{k}
-  float B = -0.203906250000000;   // For e_{k-1}
+  float B = -0.203906250000000 * 1.002;   // For e_{k-1}
   float C = 0.0934635416666667;   // For e_{k-2}
   float D = 1.66666666666667;       // For v_{k-1} 
   float E = -0.666666666666667;     // For v_{k-2}
@@ -28,7 +28,7 @@ float compensator90(float e0, float e1, float e2, float v1, float v2) {
 
 float compensator180(float e0, float e1, float e2, float v1, float v2) {
   float A = 0.0460151187904968;     // For e_{k}
-  float B = -0.0845572354211663;   // For e_{k-1}
+  float B = -0.0845572354211663 * 1.002;   // For e_{k-1}
   float C = 0.0387580993520518;   // For e_{k-2}
   float D = 1.72786177105832;       // For v_{k-1} 
   float E = -0.727861771058315;     // For v_{k-2}
@@ -61,7 +61,7 @@ void RotationControl::init(float heading_deg, float omega) { // cw positive, ccw
     else if (angle_err_0 < -180.0) angle_err_0 += 360.0;
 
     compensator_id = 0;
-    if ((abs(angle_err_0) > 0 && abs(angle_err_0) <= 90)) {
+    if ((abs(angle_err_0) > 0 && abs(angle_err_0) <= 100)) {
         compensator_id = 0; // 90 degree compensator
     } else {
         compensator_id = 1; // 180 degree 

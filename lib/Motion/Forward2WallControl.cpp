@@ -107,11 +107,11 @@ float Forward2WallControl::frontL_tof_compensator(float tof_front_left) {
     if (tof_front_left < 0) tof_front_left = 200.0;
 
     // PI controller gains
-    float Kp = 0.026;  
+    float Kp = 0.026 * 1.1;  
     float Ki = 0.03;  
     float T = 0.02;   // Control loop period in seconds
 
-    tof_FL_err0 = tof_front_left - target_dis_mm;
+    tof_FL_err0 = target_dis_mm - tof_front_left;
 
     // Accumulate integral of error
     tof_FL_integral += tof_FL_err0 * T;
@@ -120,24 +120,24 @@ float Forward2WallControl::frontL_tof_compensator(float tof_front_left) {
     // PI controller output
     tof_FL_ctrl0 = Kp * tof_FL_err0 + Ki * tof_FL_integral;
 
-    return constrain(tof_FL_ctrl0, -6.0, 6.0); // Limit output to prevent excessive speed
+    return constrain(tof_FL_ctrl0, -5.0, 5.0); // Limit output to prevent excessive speed
 }
 
 float Forward2WallControl::frontR_tof_compensator(float tof_front_right) {
     if (tof_front_right < 0) tof_front_right = 200.0;
 
     // PI controller gains
-    float Kp = 0.03;
+    float Kp = 0.03 * 1.1;
     float Ki = 0.04;
     float T = 0.02;   // Control loop period in seconds
 
-    tof_FR_err0 = tof_front_right - target_dis_mm - 8.0;
+    tof_FR_err0 = target_dis_mm - tof_front_right  + 8.0;
     // Accumulate integral of error
     tof_FR_integral += tof_FR_err0 * T;
     // tof_FR_integral = constrain(tof_FR_integral, -100.0, 100.0); // Limit integral to prevent windup
     // PI controller output
     tof_FR_ctrl0 = Kp * tof_FR_err0 + Ki * tof_FR_integral;
-    return constrain(tof_FR_ctrl0, -6.0, 6.0); // Limit output to prevent excessive speed
+    return constrain(tof_FR_ctrl0, -5.0, 5.0); // Limit output to prevent excessive speed
 }
 
 
@@ -231,8 +231,8 @@ void Forward2WallControl::update() {
             vL = frontL_control;
             vR = frontR_control;
 
-            float pwmL = voltage_to_pwm180(vL);
-            float pwmR = voltage_to_pwm180(-vR);
+            float pwmL = voltage_to_pwm90(-vL);
+            float pwmR = voltage_to_pwm90(vR);
 
             motor_driver.setSpeeds(pwmR, pwmL);
             
@@ -247,7 +247,7 @@ void Forward2WallControl::update() {
         }
     }
 
-    if (state == DISTANCE && (tof_FR_err0) < 3 && abs(tof_FL_err0) < 3) {
+    if (state == DISTANCE && (tof_FR_err0) < 5 && abs(tof_FL_err0) < 5) {
         stop_motors();
         done = true;
     }
