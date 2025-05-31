@@ -56,7 +56,7 @@ void loop() {
 
         if (!motion.isBusy()) { 
             if (state == 0) {
-                motion.fwd_to_wall(NORTH, 40, 450.0, 0.0); // Move forward to wall
+                motion.fwd_to_wall(NORTH, 35, 450.0, 0.0); // Move forward to wall
                 state++;
                 delay(500);
             } else if (state == 1) {
@@ -64,7 +64,7 @@ void loop() {
                 state++;
                 delay(500);
             } else if (state == 2) {
-                motion.fwd_to_wall(WEST, 40, 450.0, 0.0); // Move forward to wall
+                motion.fwd_to_wall(WEST, 35, 450.0, 0.0); // Move forward to wall
                 state++;
                 delay(500);
             } else if (state == 3) {
@@ -72,7 +72,7 @@ void loop() {
                 state++;
                 delay(500);
             } else if (state == 4) {
-                motion.fwd_to_wall(SOUTH, 40, 450.0, 0.0); // Move forward to wall
+                motion.fwd_to_wall(SOUTH, 35, 450.0, 0.0); // Move forward to wall
                 state++;
                 delay(500);
             } else if (state == 5) {
@@ -80,7 +80,7 @@ void loop() {
                 state++;
                 delay(500);
             } else if (state == 6) {
-                motion.fwd_to_wall(WEST, 40, 450.0, 0.0); // Move forward to wall
+                motion.fwd_to_wall(WEST, 35, 450.0, 0.0); // Move forward to wall
                 state++;
                 delay(500);
             } else if (state == 7) {
@@ -88,7 +88,7 @@ void loop() {
                 state++; 
                 delay(500);
             } else if (state == 8) {
-                motion.fwd_to_wall(EAST, 40, 450.0, 0.0); // Move forward to wall
+                motion.fwd_to_wall(EAST, 35, 450.0, 0.0); // Move forward to wall
                 state++;
                 delay(500);
             } else if (state == 9) {
@@ -96,7 +96,7 @@ void loop() {
                 state++;
                 delay(500);
             } else if (state == 10) {
-                motion.fwd_to_wall(NORTH, 40, 450.0, 0.0); // Move forward to a distance of 100mm
+                motion.fwd_to_wall(NORTH, 35, 450.0, 0.0); // Move forward to a distance of 100mm
                 state++;
                 delay(500);
             } else if (state == 11) {
@@ -105,7 +105,7 @@ void loop() {
                 delay(500);
             }
             else if (state == 12) {
-                motion.fwd_to_wall(EAST, 40, 450.0, 0.0); 
+                motion.fwd_to_wall(EAST, 35, 450.0, 0.0);
                 state++;
                 delay(500);
             } else if (state == 13) {
@@ -113,7 +113,7 @@ void loop() {
                 state++;
                 delay(500);
             } else if (state == 14) {
-                motion.fwd_to_wall(SOUTH, 40, 450.0, 0.0); 
+                motion.fwd_to_wall(SOUTH, 35, 450.0, 0.0);
                 state++;
                 delay(500);
             } else if (state == 15) {

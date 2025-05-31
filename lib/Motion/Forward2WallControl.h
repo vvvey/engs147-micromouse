@@ -85,6 +85,7 @@ private:
     float tof_FL_ctrl0 = 0.0;
     float tof_FL_ctrl1 = 0.0;
     float frontL_tof_compensator(float tof_front_left);
+    float tof_FL_integral = 0.0;
 
     // front right TOF variables
     float tof_FR = 0.0;
@@ -93,6 +94,7 @@ private:
     float tof_FR_ctrl0 = 0.0;
     float tof_FR_ctrl1 = 0.0;
     float frontR_tof_compensator(float tof_front_right);
+    float tof_FR_integral = 0.0;
 
 
 

@@ -108,41 +108,36 @@ float Forward2WallControl::frontL_tof_compensator(float tof_front_left) {
 
     // PI controller gains
     float Kp = 0.05;  
-    float Ki = 0.02;  
-    float T = 0.02;   
+    float Ki = 0.1;  
+    float T = 0.02;   // Control loop period in seconds
 
-    // Coefficients for PI difference equation
-    float a = Kp + Ki * T;
-    float b = -Kp;
-
-    tof_FL_err1 = tof_FL_err0;
     tof_FL_err0 = tof_front_left - target_dis_mm;
 
-    tof_FL_ctrl1 = tof_FL_ctrl0;
-    tof_FL_ctrl0 = tof_FL_ctrl1 + a * tof_FL_err0 + b * tof_FL_err1;
+    // Accumulate integral of error
+    tof_FL_integral += tof_FL_err0 * T;
+    // tof_FL_integral = constrain(tof_FL_integral, -100.0, 100.0); // Limit integral to prevent windup
 
-    return tof_FL_ctrl0;
+    // PI controller output
+    tof_FL_ctrl0 = Kp * tof_FL_err0 + Ki * tof_FL_integral;
+
+    return constrain(tof_FL_ctrl0, -6.0, 6.0); // Limit output to prevent excessive speed
 }
 
 float Forward2WallControl::frontR_tof_compensator(float tof_front_right) {
     if (tof_front_right < 0) tof_front_right = 200.0;
 
     // PI controller gains
-    float Kp = 0.05;  // Proportional gain
-    float Ki = 0.02;  // Integral gain
-    float T = 0.02;   // Sample time in seconds
+    float Kp = 0.05;
+    float Ki = 0.1;
+    float T = 0.02;   // Control loop period in seconds
 
-    // Coefficients for PI difference equation
-    float a = Kp + Ki * T;
-    float b = -Kp;
-
-    tof_FR_err1 = tof_FR_err0;
-    tof_FR_err0 = tof_front_right - target_dis_mm - 9;
-
-    tof_FR_ctrl1 = tof_FR_ctrl0;
-    tof_FR_ctrl0 = tof_FR_ctrl1 + a * tof_FR_err0 + b * tof_FR_err1;
-
-    return tof_FR_ctrl0;
+    tof_FR_err0 = tof_front_right - target_dis_mm - 8.0;
+    // Accumulate integral of error
+    tof_FR_integral += tof_FR_err0 * T;
+    // tof_FR_integral = constrain(tof_FR_integral, -100.0, 100.0); // Limit integral to prevent windup
+    // PI controller output
+    tof_FR_ctrl0 = Kp * tof_FR_err0 + Ki * tof_FR_integral;
+    return constrain(tof_FR_ctrl0, -6.0, 6.0); // Limit output to prevent excessive speed
 }
 
 
@@ -197,7 +192,7 @@ void Forward2WallControl::update() {
         if (tof_FL < 0) tof_FL = 200.0; // Ensure valid TOF reading
         if (tof_FR < 0) tof_FR = 200.0; // Ensure valid TOF reading
 
-        if (tof_FL < 180 && tof_FR < 180) {
+        if (tof_FL < 200 && tof_FR < 200) {
             stop_motors();
             state = DISTANCE; 
             delay(1000); // Wait for 1 second
@@ -219,6 +214,7 @@ void Forward2WallControl::update() {
             float pwmR = voltage_to_pwm(-vR);
 
             motor_driver.setSpeeds(pwmR, pwmL);
+            break;
         }
 
         case DISTANCE: {
@@ -238,10 +234,11 @@ void Forward2WallControl::update() {
             float pwmR = voltage_to_pwm180(-vR);
 
             motor_driver.setSpeeds(pwmR, pwmL);
+            break;
         }
     }
 
-    if (state == DISTANCE && (tof_FR_err0) < 5 && abs(tof_FL_err0) < 5) {
+    if (state == DISTANCE && (tof_FR_err0) < 3 && abs(tof_FL_err0) < 3) {
         stop_motors();
         done = true;
     }
