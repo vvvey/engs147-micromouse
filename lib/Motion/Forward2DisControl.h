@@ -7,47 +7,76 @@ class Forward2DisControl : public Control {
 public:
     Forward2DisControl();
     void init() override;
-    void init(int dis_mm, int heading);
+    void init(int heading, int dis_mm, float spdX);
     void update() override;
     bool isFinished() override;
     void logData() override;
     int getTSMillis() override;
 
 private:
+
+    ControlState state; 
+    int target_dis_mm;
     bool done = false;
-    int target_dis_mm = 0;
+    float speedX;    
+    float current_dis_mm = 0.0;
 
-    // time
-    unsigned long curr_time_ms = 0;
-    unsigned long prev_time_ms = 0;
+    float integral_error = 0.0;  
+    const float dt = 0.05;       // 50ms in seconds
+    
+    const float WHEEL_BASE_MM = 81.0; // Adjust based on your robot
 
-    // Omega control 
-    float l_omega = 0.0f, r_omega = 0.0f;
-    float l_ref_omega = 0.0f, r_ref_omega = 0.0f;
-    float l_err_0 = 0.0f, l_err_1 = 0.0f, l_err_2 = 0.0f;
-    float r_err_0 = 0.0f, r_err_1 = 0.0f, r_err_2 = 0.0f;
-    float l_ctrl_0 = 0.0f, l_ctrl_1 = 0.0f, l_ctrl_2 = 0.0f;
-    float r_ctrl_0 = 0.0f, r_ctrl_1 = 0.0f, r_ctrl_2 = 0.0f;
+    float prev_left_mm = 0.0;
+    float prev_right_mm = 0.0;
 
-    // Side wall correction
-    float side_tof_err = 0.0f;
-    float side_tof_err_0 = 0.0f;
-    float side_tof_err_1 = 0.0f;
-    float side_tof_ctrl_0 = 0.0f;
-    float ref_heading = 0.0f;
-    float curr_heading = 0.0f;
-    float heading_err_0 = 0.0f;
-    float heading_err_1 = 0.0f;
-    float heading_ctrl_0 = 0.0f;
+    static constexpr int arr_size = 500;
+    float time[arr_size];
+    float left_speed[arr_size];
+    float left_ctrl[arr_size];
+    float right_speed[arr_size];
+    float right_ctrl[arr_size];
+    int index = 0;
 
-    // Logging
-    static const int arr_size = 1000;
-    int loop_counter = 0;
-    unsigned long time_ms_arr[arr_size];
-    float l_omega_arr[arr_size];
-    float r_omega_arr[arr_size];
-    float l_ctrl_arr[arr_size];
-    float r_ctrl_arr[arr_size];
+    float target_heading = 0.0; 
+    float heading_err0 = 0.0; 
+    float heading_err1 = 0.0;
+    float heading_ctrl0 = 0.0;
+    float heading_ctrl1 = 0.0;
+    float heading_compensator(float curr_heading);
+
+    float heading_control = 0.0;
+
+
+    // speed compensator variables
+    float speedL_err0 = 0.0;
+    float speedL_err1 = 0.0;
+    float speedL_err2 = 0.0;
+    float speedL_ctrl0 = 0.0;
+    float speedL_ctrl1 = 0.0;
+    float speedL_ctrl2 = 0.0;
+    float speed_compensator_L(float target_speed = 0.0, float current_speed_L = 0.0);
+    
+
+    // right speed compensator variables
+    float speedR_err0 = 0.0;
+    float speedR_err1 = 0.0;
+    float speedR_err2 = 0.0;
+    float speedR_ctrl0 = 0.0;
+    float speedR_ctrl1 = 0.0;
+    float speedR_ctrl2 = 0.0;
+    float speed_compensator_R(float target_speed = 0.0, float current_speed_R = 0.0);
+
+    // side TOF variables
+    float tof_FL = 0.0;
+    float tof_FR = 0.0;
+    float side_tof_err0 = 0.0;
+    float side_tof_err1 = 0.0;
+    float side_tof_err = 0.0;
+    float side_tof_ctrl_0 = 0.0;
+    float side_tof_ctrl_1 = 0.0;
+    float side_integral = 0.0;
+    float side_tof_compensator(float tof_L, float tof_R);
+    float side_control = 0.0;
 };
 
 #endif

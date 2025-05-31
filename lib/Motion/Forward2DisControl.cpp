@@ -1,3 +1,4 @@
+// Control Feedback Layer
 #include "Forward2DisControl.h"
 #include "TOF.h"
 #include "Encoder.h"
@@ -6,191 +7,200 @@
 #include <Arduino.h>
 #include "compensators.h"
 
-Forward2DisControl fwd_2_dis_ctrl;
+Forward2DisControl fwd_2_dis_ctrl; // Allow MotionController to extern
 
 #define TOF_RIGHT 0
 #define TOF_FRONT_RIGHT 1
 #define TOF_FRONT_LEFT 2
 #define TOF_LEFT 3
 
-#define STOP_BTN 32
-
-
 Forward2DisControl::Forward2DisControl() {}
 
-int Forward2DisControl::getTSMillis() {
-    return 50;
+float Forward2DisControl::speed_compensator_L(float target_speed, float current_speed_L) {
+    float a = 0.001842;
+    float b = 8.948e-5;
+    float c = -0.001753;
+    float d = 1.764;
+    float e = -0.7641;
+
+    speedL_err2 = speedL_err1;
+    speedL_err1 = speedL_err0; 
+    speedL_err0 = target_speed - current_speed_L;
+
+    speedL_ctrl2 = speedL_ctrl1;
+    speedL_ctrl1 = speedL_ctrl0;
+    speedL_ctrl0 = a * speedL_err0 + b * speedL_err1 + c * speedL_err2 + d * speedL_ctrl1 + e * speedL_ctrl2;
+
+    return speedL_ctrl0;
 }
 
-void Forward2DisControl::init(int dis_mm, int heading) {
-    IMU_init();
-    stop_motors();
+float Forward2DisControl::speed_compensator_R(float target_speed, float current_speed_R) {
+    float a = 0.001842;
+    float b = 8.948e-5;
+    float c = -0.001753;
+    float d = 1.764;
+    float e = -0.7641;
 
-    target_dis_mm =  dis_mm;
+    speedR_err2 = speedR_err1;
+    speedR_err1 = speedR_err0; 
+    speedR_err0 = target_speed - current_speed_R;
 
-    leftEnc.begin();
-    rightEnc.begin();
+    speedR_ctrl2 = speedR_ctrl1;
+    speedR_ctrl1 = speedR_ctrl0;
+    speedR_ctrl0 = a * speedR_err0 + b * speedR_err1 + c * speedR_err2 + d * speedR_ctrl1 + e * speedR_ctrl2;
 
-    leftEnc.reset();
-    rightEnc.reset();
+    return speedR_ctrl0;
+}
+
+float Forward2DisControl::heading_compensator(float curr_heading) {
+    // PD gains
+    float Kp = 3.0;  // proportional gain
+    float Kd = 0.0;  // derivative gain (tune this as needed)
+
+    // Compute heading error with wrap-around at ±180°
+    heading_err1 = heading_err0;
+    heading_err0 = target_heading - curr_heading;
+    if (heading_err0 > 180.0) heading_err0 -= 360.0;
+    if (heading_err0 < -180.0) heading_err0 += 360.0;
+
+    // PD control law
+    float derivative = heading_err0 - heading_err1;
+    heading_ctrl0 = Kp * heading_err0 + Kd * derivative;
+
+    return heading_ctrl0;
+}
+
+float Forward2DisControl::side_tof_compensator(float tof_L, float tof_R) {
+    float alpha = 1.0; // range [0, 1], 1.0 means no filtering
+    float offset = -13.0; // found when placed in the middle of two walls
+
+    bool tof_validL = (tof_L > 0 && tof_L < 100); // true if there's wall on the left
+    bool tof_validR = (tof_R > 0 && tof_R < 100); // true if there's wall on the right
+
+    if (tof_validL && tof_validR) {
+        side_tof_err0 = tof_R - tof_L + offset;
+    } else if (tof_validR) {
+        side_tof_err0 = -1.0 * (100.0 / 2.0 - tof_R - offset / 2.0);
+    } else if (tof_validL) {
+        side_tof_err0 = 100.0 / 2.0 - tof_L + offset / 2.0;
+    } else {
+        side_tof_err0 = 0.0;
+    }
+
+    side_tof_err1 = side_tof_err0;
+    side_tof_err0 = alpha * side_tof_err0 + (1.0f - alpha) * side_tof_err0; // Low-pass filter
+
+    // PD Controller 
+    float kp = 0.18;
+    float ki = 0.00;
+    float kd = 0.05;
+    float dt = 0.1;
+
+    side_integral += side_tof_err0 * dt;
+    side_integral = constrain(side_integral, -80.0, 80.0);
+
+    side_tof_ctrl_0 = kp * side_tof_err0 + kd * (side_tof_err1 - side_tof_err1) / dt + ki * side_integral;
+    return side_tof_ctrl_0;
+}
+
+
+void Forward2DisControl::init() {return;}
+
+void Forward2DisControl::init(int heading, int dis_mm, float spdX) {
+    // Initialize Set points 
+    target_heading = heading;
+    target_dis_mm = dis_mm;
+    speedX = spdX;
+
+    // Reset variables
+    current_dis_mm = 0.0;
+    integral_error = 0.0;
     done = false;
-    
-    ref_heading = heading;
-    curr_heading = IMU_readZ();
+    prev_left_mm = 0.0;
+    prev_right_mm = 0.0;
+    index = 0;
+    leftEnc.reset();  // Reset distance
+    rightEnc.reset();  // Reset distance
 
-    curr_time_ms = millis();
-    prev_time_ms = curr_time_ms;
+    stop_motors();
+    state = CONSTANT_SPEED; 
 }
 
-void Forward2DisControl::init() {return;} // Ignoring
 
 void Forward2DisControl::update() {
-    if (digitalRead(STOP_BTN) == LOW) {
-        Serial.println("STOP button pressed.");
-        stop_motors();
-        done = true;
-        return;
-    }
-
-    /****** Front Wall Safety Check ******/
-    float front_left_tof = TOF_getDistance(TOF_FRONT_LEFT);
-    float front_right_tof = TOF_getDistance(TOF_FRONT_RIGHT);
-    if (front_left_tof < 0) front_left_tof = 200.0;
-    if (front_right_tof < 0) front_right_tof = 200.0;
-
-    Serial.print("Front TOF L: "); Serial.print(front_left_tof);
-    Serial.print("  R: "); Serial.println(front_right_tof);
-
-    if (front_left_tof < 60.0 || front_right_tof < 60.0) {
-        Serial.println("Front wall too close. Stopping.");
-        stop_motors();
-        done = true;
-        return;
-    }
-
+    if (done) return;
     leftEnc.update();
     rightEnc.update();
 
-    float avg_distance = 0.5f * (leftEnc.getDis() - rightEnc.getDis()); // Neg needed for backwards encoder values
+    float left_speed = leftEnc.getSpeedX();
+    float right_speed = -rightEnc.getSpeedX();
 
+    float left_dis = leftEnc.getDis();
+    float right_dis = -rightEnc.getDis();
 
-    Serial.print("Avg Distance: "); Serial.println(avg_distance);
+    if (index % 5 == 0) { // Sampling time = TS * 5 = 100ms
+        float heading = IMU_readZ();
+        float tof_L = TOF_getDistance(TOF_LEFT);
+        float tof_R = TOF_getDistance(TOF_RIGHT);
 
-    if (avg_distance >= target_dis_mm) {
-        Serial.println("Target distance reached.");
-        stop_motors();
-        done = true;
-        return;
+        heading_control = heading_compensator(heading);
+        side_control = side_tof_compensator(tof_L, tof_R);
     }
 
-    /****** Speed Control ******/
-    float e = target_dis_mm - avg_distance;
-
-    const float Kp = 0.1f;                  // proportional gain
-    const float MAX_OMEGA = 25.0f;
-    const float MIN_OMEGA = 5.0f;
-
-    float target_omega = Kp * e;
-    target_omega = constrain(target_omega, MIN_OMEGA, MAX_OMEGA);
-
-    l_ref_omega = target_omega;
-    r_ref_omega = target_omega;
-
-    l_omega = leftEnc.getOmega();
-    r_omega = rightEnc.getOmega();
-
-    l_err_2 = l_err_1;
-    l_err_1 = l_err_0;
-    l_err_0 = l_ref_omega - l_omega;
-
-    l_ctrl_2 = l_ctrl_1;
-    l_ctrl_1 = l_ctrl_0;
-    l_ctrl_0 = omega_compensator(l_err_0, l_err_1, l_err_2, l_ctrl_1, l_ctrl_2);
-
-    r_err_2 = r_err_1;
-    r_err_1 = r_err_0;
-    r_err_0 = r_ref_omega - r_omega;
-
-    r_ctrl_2 = r_ctrl_1;
-    r_ctrl_1 = r_ctrl_0;
-    r_ctrl_0 = omega_compensator(r_err_0, r_err_1, r_err_2, r_ctrl_1, r_ctrl_2);
-
-    /****** Side TOF Sensors ******/
-    float left_tof = TOF_getDistance(TOF_LEFT);
-    float right_tof = TOF_getDistance(TOF_RIGHT);
-    float offset = -13.0f;
-
-    bool left_valid = (left_tof > 0 && left_tof < 110);
-    bool right_valid = (right_tof > 0 && right_tof < 110);
-
-    float side_error = 0.0f;
-    if (left_valid && right_valid) {
-        side_error = right_tof - left_tof + offset;
-    } else if (right_valid) {
-        side_error = -1.0f * (50.0f - right_tof - offset / 2.0f);
-    } else if (left_valid) {
-        side_error = 50.0f - left_tof + offset / 2.0f;
+    // checking if the robot should switch to distance control
+    if (state == CONSTANT_SPEED) {
+        if ((target_dis_mm - left_dis) < 180 && (target_dis_mm - right_dis) < 180) {
+            stop_motors();
+            state = DISTANCE; 
+            delay(1000); // Wait for 1 second
+        }
     }
 
-    float alpha = 0.1f;
-    side_tof_err_1 = side_tof_err;
-    side_tof_err = alpha * side_error + (1.0f - alpha) * side_tof_err;
-    side_tof_ctrl_0 = side_compensator(side_tof_err, side_tof_err_1);
+    float vL = 0.0;
+    float vR = 0.0;
 
-    // ----- HEADING CONTROL (IMU) -----
-    curr_heading = IMU_readZ(); // degrees
+    switch (state) {
+        case CONSTANT_SPEED: {
+            float base_control_L = speed_compensator_L(speedX + heading_control + side_control, left_speed);
+            float base_control_R = speed_compensator_R(speedX - heading_control - side_control, right_speed);
 
-    // Normalize heading error to [-180, 180]
-    heading_err_1 = heading_err_0;
-    heading_err_0 = curr_heading - ref_heading;
-    if (heading_err_0 > 180) heading_err_0 -= 360;
-    if (heading_err_0 < -180) heading_err_0 += 360;
+            vL = base_control_L;
+            vR = base_control_R;
 
-    // Apply heading compensator (simple P or PD)
-    heading_ctrl_0 = heading_compensator(heading_err_0, heading_err_1);
+            float pwmL = voltage_to_pwm(vL);
+            float pwmR = voltage_to_pwm(-vR);
 
+            motor_driver.setSpeeds(pwmR, pwmL);
+        }
 
-    float left_voltage = l_ctrl_0 + side_tof_ctrl_0 - heading_ctrl_0;
-    float right_voltage = r_ctrl_0 + side_tof_ctrl_0 - heading_ctrl_0;
-
-
-    float left_pwm = voltage_to_pwm(left_voltage);
-    float right_pwm = voltage_to_pwm(right_voltage);
-
-    Serial.print("PWM L: "); Serial.print(left_pwm);
-    Serial.print("  R: "); Serial.println(right_pwm);
-
-    motor_driver.setSpeeds(-right_pwm, left_pwm); // invert right to go forward
-
-    /****** Log Data ******/
-    if (loop_counter < arr_size) {
-        time_ms_arr[loop_counter] = millis();
-        l_omega_arr[loop_counter] = l_omega;
-        r_omega_arr[loop_counter] = r_omega;
-        l_ctrl_arr[loop_counter] = left_voltage;
-        r_ctrl_arr[loop_counter] = right_voltage;
+        case DISTANCE: {
+            
+        }
     }
 
-    Serial.print("Loop counter: "); Serial.println(loop_counter);
-    loop_counter++;
+
+    index++;
 }
-
 
 bool Forward2DisControl::isFinished() {
     return done;
 }
 
 void Forward2DisControl::logData() {
-    Serial.println("time_ms, l_omega, r_omega, l_ctrl, r_ctrl");
-    for (int i = 0; i < loop_counter; i++) {
-        Serial.print(time_ms_arr[i]);
+    Serial.println("Time, Left Speed, Right Speed");
+    for (int i = 0; i < index; i++) {
+        Serial.print(time[i]);
         Serial.print(", ");
-        Serial.print(l_omega_arr[i]);
+        Serial.print(left_speed[i]);
         Serial.print(", ");
-        Serial.print(r_omega_arr[i]);
-        Serial.print(", ");
-        Serial.print(l_ctrl_arr[i]);
-        Serial.print(", ");
-        Serial.println(r_ctrl_arr[i]);
+        Serial.println(right_speed[i]);
     }
+    Serial.println("End of Data");
+    
 }
+
+int Forward2DisControl::getTSMillis() {
+    return 20;
+}
+
+

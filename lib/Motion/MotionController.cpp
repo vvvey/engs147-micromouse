@@ -4,13 +4,11 @@
 #include "RotationControl.h"
 #include "Arduino.h"
 
-extern Forward2WallControl fwd_2_wall_ctrl;
-extern Forward2DisControl fwd_2_dis_ctrl;
-extern RotationControl rot_ctrl;
-// Forward2WallControl fwd;
 
 MotionController::MotionController() {
     delete fwd_wall_ptr;
+    delete fwd_dis_ptr;
+    delete rot_ptr;
 }
 
 void MotionController::update() {
@@ -59,13 +57,13 @@ void MotionController::fwd_to_wall(float heading, float  dis_mm, float speedx, f
     last_update_time_ms = millis();
 }
 
-void MotionController::fwd_to_dis(int distance_mm, int heading) {
+void MotionController::fwd_to_dis(int heading, int distance_mm,  float speedx) {
     // Reset fwd_2_dis_ctrl by creating a new instance and replacing the old one
     if (fwd_dis_ptr) {
         delete fwd_dis_ptr; // Clean up old instance
     }
     fwd_dis_ptr = new Forward2DisControl(); // Allocate a new one
-    fwd_dis_ptr->init(distance_mm, heading);
+    fwd_dis_ptr->init(heading, distance_mm, speedx);
     current_control = fwd_dis_ptr;
     last_update_time_ms = millis();
 }

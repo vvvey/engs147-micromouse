@@ -3,12 +3,6 @@
 
 #include "Control.h"
 
-enum ControlState {
-    IDLE, // do nothing
-    CONSTANT_SPEED, // constant speed mode
-    DISTANCE // move to wall 
-};
-
 class Forward2WallControl : public Control {
 public:
     Forward2WallControl();

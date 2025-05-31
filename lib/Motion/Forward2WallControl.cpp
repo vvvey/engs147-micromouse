@@ -204,7 +204,6 @@ void Forward2WallControl::update() {
         }
     }
 
-
     float vL = 0.0;
     float vR = 0.0;
 
