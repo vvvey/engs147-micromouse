@@ -30,7 +30,7 @@ void MoveProcess(int goalType);
 void showWallsAndPrintWait(WallReading w, int row, int col, int direction, int nextRow, int nextCol, int nextDir);
 void showWallsAndWait(WallReading w, int row, int col, int direction, int nextRow, int nextCol, int nextDir);
 void printMazeDebugLoop();
-void reversePath(int* original, int* reversed, int length);
+void reversePath(int* original, int* reversed, int& length);
 
 
 MotionController motion;
@@ -295,17 +295,25 @@ void printMazeDebugLoop() {
     delay(300); 
 }
 
-void reversePath(int* original, int* reversed, int length) {
-    for (int i = 0; i < length; i++) {
-        int t = original[length - 1 - i];  // Reverse order
+void reversePath(int* original, int* reversed, int& length) {
+    int newIndex = 0;
+
+    for (int i = length - 1; i >= 0; i--) {
+        int t = original[i];
+
+        // Skip 180 degree turns
+        if (t == 2) {
+            continue;
+        }
 
         // Only need to change left and right turn I believe
         switch (t) {
-            case 0: reversed[i] = 1; break; // LEFT --> RIGHT
-            case 1: reversed[i] = 0; break; // RIGHT --> LEFT
-            case 2: reversed[i] = 2; break; 
-            case 3: reversed[i] = 3; break; 
-            default: reversed[i] = t; break;
+            case 0: reversed[newIndex++] = 1; break; // Left --> Right
+            case 1: reversed[newIndex++] = 0; break; // Right --> Left
+            case 3: reversed[newIndex++] = 3; break; 
         }
     }
+
+    length = newIndex; // Update original index to reflect new length
 }
+
