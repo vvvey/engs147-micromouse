@@ -34,16 +34,16 @@ int voltage_to_pwm(float voltage) {
 int voltage_to_pwm90(float voltage) {
     float pwm;
 
-    if (voltage < -1) {
+    if (voltage < -0.5) {
         pwm = -46.7743 * exp(-0.1678 * voltage) - 0.0324 * exp(-0.9619 * voltage);
-    } else if (voltage > 1) {
+    } else if (voltage > 0.5) {
         pwm = 53.8983 * exp(0.1413 * voltage) + 0.0517 * exp(0.9216 * voltage);
     } else {
         pwm = 0;
     }
 
-    if (pwm > 0 && pwm < 120) pwm = 120;
-    if (pwm < 0 && pwm > -120) pwm = -120;
+    if (pwm > 0 && pwm < 115) pwm = 115;
+    if (pwm < 0 && pwm > -115) pwm = -115;
 
     if (pwm > 400.0) pwm = 400.0;
     if (pwm < -400.0) pwm = -400.0;
@@ -54,16 +54,37 @@ int voltage_to_pwm90(float voltage) {
 int voltage_to_pwm180(float voltage) {
     float pwm;
 
-    if (voltage < -1.44) {
+    if (voltage < -0.8) {
         pwm = -46.7743 * exp(-0.1678 * voltage) - 0.0324 * exp(-0.9619 * voltage);
-    } else if (voltage > 1.44) {
+    } else if (voltage > 0.8) {
         pwm = 53.8983 * exp(0.1413 * voltage) + 0.0517 * exp(0.9216 * voltage);
     } else {
         pwm = 0;
     }
 
-    if (pwm > 0 && pwm < 140) pwm = 140;
-    if (pwm < 0 && pwm > -140) pwm = -140;
+    if (pwm > 0 && pwm < 100) pwm = 100;
+    if (pwm < 0 && pwm > -100) pwm = -100;
+
+    if (pwm > 400.0) pwm = 400.0;
+    if (pwm < -400.0) pwm = -400.0;
+
+    return (int)pwm;
+}
+
+
+int voltage_to_pwm_dis(float voltage) {
+    float pwm;
+
+    if (voltage < 0) {
+        pwm = -46.7743 * exp(-0.1678 * voltage) - 0.0324 * exp(-0.9619 * voltage);
+    } else if (voltage > 0) {
+        pwm = 53.8983 * exp(0.1413 * voltage) + 0.0517 * exp(0.9216 * voltage);
+    } else {
+        pwm = 0;
+    }
+
+    if (pwm > 0 && pwm < 100) pwm = 100;
+    if (pwm < 0 && pwm > -100) pwm = -100;
 
     if (pwm > 400.0) pwm = 400.0;
     if (pwm < -400.0) pwm = -400.0;

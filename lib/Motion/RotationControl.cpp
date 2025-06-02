@@ -18,7 +18,7 @@ int RotationControl::getTSMillis() {
 
 float compensator90(float e0, float e1, float e2, float v1, float v2) {
   float A = 0.110963541666667;     // For e_{k}
-  float B = -0.203906250000000 * 1.002;   // For e_{k-1}
+  float B = -0.203906250000000;   // For e_{k-1}
   float C = 0.0934635416666667;   // For e_{k-2}
   float D = 1.66666666666667;       // For v_{k-1} 
   float E = -0.666666666666667;     // For v_{k-2}
@@ -28,7 +28,7 @@ float compensator90(float e0, float e1, float e2, float v1, float v2) {
 
 float compensator180(float e0, float e1, float e2, float v1, float v2) {
   float A = 0.0460151187904968;     // For e_{k}
-  float B = -0.0845572354211663 * 1.002;   // For e_{k-1}
+  float B = -0.0845572354211663;   // For e_{k-1}
   float C = 0.0387580993520518;   // For e_{k-2}
   float D = 1.72786177105832;       // For v_{k-1} 
   float E = -0.727861771058315;     // For v_{k-2}
@@ -90,11 +90,12 @@ void RotationControl::update() {
         pwm = voltage_to_pwm180(ctrl_0);
     }
 
+
     motor_driver.setSpeeds(pwm, pwm);
 
 
-    AWS = 53.8983 * exp(0.1413 * ctrl_0) + 0.0517 * exp(0.9216 * ctrl_0);
-    unsigned long currentTime = millis();
+    // AWS = 53.8983 * exp(0.1413 * ctrl_0) + 0.0517 * exp(0.9216 * ctrl_0);
+    // unsigned long currentTime = millis();
 
     angle_err_2 = angle_err_1;
     angle_err_1 = angle_err_0;
@@ -111,7 +112,7 @@ void RotationControl::update() {
 
     loop_counter++;
 
-    if (abs(angle_err_0) < 3 and abs(angle_err_1) < 3 and abs(angle_err_2) < 3) {
+    if (abs(angle_err_0) < 4 and abs(angle_err_1) < 4 and abs(angle_err_2) < 4) {
         done = true;
         stop_motors();
     }
