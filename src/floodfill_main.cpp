@@ -89,10 +89,10 @@ void loop() {
         // Step 2: Floodfill map
         floodfill();
 
-        // Step 3: Decide where to go
-        int nextRow, nextCol, nextDir;
-        int simulatedDir = direction;
-        getNextMove(curRow, curCol, simulatedDir, &nextRow, &nextCol, &nextDir);
+        // // Step 3: Decide where to go
+        // int nextRow, nextCol, nextDir;
+        // int simulatedDir = direction;
+        // getNextMove(curRow, curCol, simulatedDir, &nextRow, &nextCol, &nextDir);
 
         // Step 3: Decide next move
         int nextRow, nextCol, nextDir;

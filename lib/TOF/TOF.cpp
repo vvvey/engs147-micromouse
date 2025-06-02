@@ -34,16 +34,14 @@ float TOF_getDistance(uint8_t sensor_id) {
 
     selectChannel(sensor_id);
 
-    for (int i = 0; i < 10; i++) {
-        uint8_t range = sensors[sensor_id].readRange();
-        uint8_t status = sensors[sensor_id].readRangeStatus();
+    uint8_t range = sensors[sensor_id].readRange();
+    uint8_t status = sensors[sensor_id].readRangeStatus();
 
-        if (status == VL6180X_ERROR_NONE) {
-            return (float)range;
-        }
-
-        delay(2); // small delay to prevent flooding the I2C bus
+    if (status == VL6180X_ERROR_NONE) {
+        return (float)range;
     }
+
+    delay(2); // small delay to prevent flooding the I2C bus
 
     return -100.0f; // No valid reading found
 }
