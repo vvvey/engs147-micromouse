@@ -85,3 +85,7 @@ bool existWall(int row, int col, int dir) {
 bool inCenter(int row, int col) {
     return (row == 7 || row == 8) && (col == 7 || col == 8);
 }
+
+bool inHome(int row, int col) {
+    return (row == 0) && (col == 0);
+}

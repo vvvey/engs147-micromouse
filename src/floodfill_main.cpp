@@ -18,11 +18,17 @@
 
 #define LED_LEFT   29   
 #define LED_FRONT  31    
-#define LED_RIGHT  33   // Green
+#define LED_RIGHT  33
 #define CONTINUE_BTN 25 
 
+#define SEARCH 0
+#define HOME 1
+#define RACE 2
 
+
+void MoveProcess(int goalType);
 void showWallsAndWait(WallReading w, int row, int col, int direction, int nextRow, int nextCol, int nextDir);
+void printMazeDebugLoop();
 
 MotionController motion;
 
@@ -30,9 +36,8 @@ MotionController motion;
 int curRow = 0, curCol = 0;
 int lastRow = 0, lastCol = 0;
 int direction = NORTH;
-
 bool run = false;
-
+int current_state = 0;
 
 void setup() {
     digitalWrite(LED_LEFT, HIGH);
@@ -82,54 +87,85 @@ void loop() {
     motion.update();
 
     if (!motion.isBusy()) {
-        // Step 1: Sense and update wall map
-        WallReading walls = readWalls(curRow, curCol, direction);
-        updateWallMap(curRow, curCol, walls, direction);         
 
-        // Step 2: Floodfill map
-        floodfill();
+        switch (current_state) {
+        case SEARCH:
+            MoveProcess(GOAL_CENTER);
 
-        // Step 3: Decide next move
-        int nextRow, nextCol, nextDir;
-        getNextMove(curRow, curCol, direction, &nextRow, &nextCol, &nextDir);
+            if (inCenter(curRow, curCol)) {
+                motion.rotate(180);
+                motion.rotate(180);
+                stop_motors();
+                Serial.println("Reached center. Entering debug mode.");
+                printMazeDebugLoop();
+                Serial.println("Continuing to HOME...");
+                current_state = HOME;
+            }
+            break;
+        case HOME:
+            MoveProcess(GOAL_HOME);
+            if (inHome(curRow, curCol)) {
+                motion.rotate(NORTH);
+                stop_motors();
+                current_state = RACE;
+            }
+            break;
+        case RACE:
+            /*MoveProcess(GOAL_CENTER);
 
-        // Step 3.5: Debug
-        showWallsAndWait(walls, curRow, curCol, direction, nextRow, nextCol, nextDir);
-
-        // Step 4: Decide whether to rotate or move
-        if (nextDir != direction) {
-            motion.rotate(nextDir);
-            direction = nextDir;
-        } else {
-            // Move forward only
-            motion.fwd_to_dis(direction, 180, 450.0);
-            if (direction == NORTH) curRow++;
-            else if (direction == EAST)  curCol++;
-            else if (direction == SOUTH) curRow--;
-            else if (direction == WEST)  curCol--;
-        }
-
-
-        // Step 5: Update state
-        lastRow = curRow;
-        lastCol = curCol;
-
-        // Step 6: Check center condition
-        if (inCenter(curRow, curCol)) {
+            if (inHome(curRow, curCol)) {
+                motion.rotate(direction+180);
+                stop_motors();
+                current_state = RACE;
+            }*/
+            break;
+        default:
+            printf("Error, default case.");
             stop_motors();
-            Serial.println("Reached Center!");
-            run = false;
+            break;
         }
     }
 }
 
+
+void MoveProcess(int goalType) {
+    // Step 1: Sense and update wall map
+    WallReading walls = readWalls(curRow, curCol, direction);
+    updateWallMap(curRow, curCol, walls, direction);         
+
+    // Step 2: Floodfill map
+    floodfill(goalType);
+
+    // Step 3: Decide next move
+    int nextRow, nextCol, nextDir;
+    getNextMove(curRow, curCol, direction, &nextRow, &nextCol, &nextDir);
+
+    // Step 3.5: Debug
+    showWallsAndWait(walls, curRow, curCol, direction, nextRow, nextCol, nextDir);
+
+    // Step 4: Decide whether to rotate or move (don't update cell if rotating)
+    if (nextDir != direction) {
+        motion.rotate(nextDir);
+        direction = nextDir;
+    } else {
+        motion.fwd_to_dis(direction, 180, 450.0);
+        if (direction == NORTH) curRow++;
+        else if (direction == EAST)  curCol++;
+        else if (direction == SOUTH) curRow--;
+        else if (direction == WEST)  curCol--;
+    }
+
+    // Step 5: Update state
+    lastRow = curRow;
+    lastCol = curCol;
+}
 
 void showWallsAndWait(WallReading w, int row, int col, int direction, int nextRow, int nextCol, int nextDir) {
     digitalWrite(LED_FRONT, w.front ? HIGH : LOW);
     digitalWrite(LED_LEFT,  w.left  ? HIGH : LOW);
     digitalWrite(LED_RIGHT, w.right ? HIGH : LOW);
 
-    while (digitalRead(CONTINUE_BTN) == HIGH) {
+    //while (digitalRead(CONTINUE_BTN) == HIGH) {
         // Serial.println("=== Wall & Navigation Debug ===");
         // Serial.print("TOF Front Left: ");  Serial.println(TOF_getDistance(FRONT_LEFT));
         // Serial.print("TOF Front Right: "); Serial.println(TOF_getDistance(FRONT_RIGHT));
@@ -148,11 +184,33 @@ void showWallsAndWait(WallReading w, int row, int col, int direction, int nextRo
 
         // Serial.println("Waiting for continue button...\n");
 
-        delay(10);
-    }
+        //delay(10);
+    //}
+    delay(1000);
 
     digitalWrite(LED_LEFT, LOW);
     digitalWrite(LED_FRONT, LOW);
     digitalWrite(LED_RIGHT, LOW);
     delay(500);
+}
+
+void printMazeDebugLoop() {
+    while (digitalRead(CONTINUE_BTN) == HIGH) {
+        Serial.println("===== Maze View =====");
+        for (int row = LENGTH - 1; row >= 0; row--) {
+            for (int col = 0; col < LENGTH; col++) {
+                Serial.print(existWall(row, col, NORTH) ? "↑" : " ");
+                Serial.print(existWall(row, col, EAST)  ? "→" : " ");
+                Serial.print(existWall(row, col, SOUTH) ? "↓" : " ");
+                Serial.print(existWall(row, col, WEST)  ? "←" : " ");
+                Serial.print(" | ");
+            }
+            Serial.println();
+        }
+        Serial.println("=====================");
+        delay(1000); 
+    }
+
+    
+    delay(300); 
 }

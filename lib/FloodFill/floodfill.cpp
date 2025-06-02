@@ -10,19 +10,28 @@ void initializeFloodfill() {
     }
 }
 
-void floodfill() {
+void floodfill(int goalType) {
     initializeFloodfill();
-
     cppQueue queue(sizeof(int), AREA, FIFO, false);
 
-    // Start from maze center (e.g. (7,7) or (8,8) for 16×16)
-    int centerRow = LENGTH / 2;
-    int centerCol = LENGTH / 2;
+    if (goalType == GOAL_CENTER) {
+        int centers[4][2] = {
+            {7, 7}, {7, 8},
+            {8, 7}, {8, 8}
+        };
 
-    int startZ = rowColtoZ(centerRow, centerCol);
-    int startVal = 0;
-    int packed = startZ | (startVal << 8);
-    queue.push(&packed); 
+        for (int i = 0; i < 4; i++) {
+            int r = centers[i][0];
+            int c = centers[i][1];
+            int z = rowColtoZ(r, c);
+            int packed = z | (0 << 8);
+            queue.push(&packed);
+        }
+    } else if (goalType == GOAL_HOME) {
+        int z = rowColtoZ(0, 0);
+        int packed = z | (0 << 8);
+        queue.push(&packed);
+    }
 
     while (!queue.isEmpty()) {
         int encoded;
@@ -50,6 +59,7 @@ void floodfill() {
         }
     }
 }
+
 
 int getFloodfillValue(int row, int col) {
     return floodfillArr[rowColtoZ(row, col)];

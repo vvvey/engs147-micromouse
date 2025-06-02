@@ -15,6 +15,7 @@ void initializeMaze();
 void setWall(int row, int col, int dir, bool state);
 bool existWall(int row, int col, int dir);
 bool inCenter(int row, int col);
+bool inHome(int row, int col);
 
 // Convert (row, col) to flat index
 inline int rowColtoZ(int row, int col) {
