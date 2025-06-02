@@ -28,20 +28,24 @@ void TOF_init() {
 }
 
 float TOF_getDistance(uint8_t sensor_id) {
-  if (sensor_id >= NUM_VL6180_SENSORS) {
-    return -100.0f;  // invalid index
-  }
+    if (sensor_id >= NUM_VL6180_SENSORS) {
+        return -100.0f;
+    }
 
-  selectChannel(sensor_id);
+    selectChannel(sensor_id);
 
-  uint8_t range = sensors[sensor_id].readRange();
-  uint8_t status = sensors[sensor_id].readRangeStatus();
+    for (int i = 0; i < 10; i++) {
+        uint8_t range = sensors[sensor_id].readRange();
+        uint8_t status = sensors[sensor_id].readRangeStatus();
 
-  if (status == VL6180X_ERROR_NONE) {
-    return (float)range;  // Valid reading in mm
-  } else {
-    return -((float)status);  // Negative error code
-  }
+        if (status == VL6180X_ERROR_NONE) {
+            return (float)range;
+        }
 
+        delay(2); // small delay to prevent flooding the I2C bus
+    }
+
+    return -100.0f; // No valid reading found
 }
+
 

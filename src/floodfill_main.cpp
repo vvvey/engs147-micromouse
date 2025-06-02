@@ -22,7 +22,7 @@
 #define CONTINUE_BTN 25 
 
 
-void showWallsAndWait(WallReading w);
+void showWallsAndWait(WallReading w, int row, int col, int direction, int nextRow, int nextCol, int nextDir);
 
 MotionController motion;
 
@@ -84,33 +84,43 @@ void loop() {
     if (!motion.isBusy()) {
         // Step 1: Sense and update wall map
         WallReading walls = readWalls(curRow, curCol, direction);
-        updateWallMap(curRow, curCol, walls, direction);
-
-        // Step 1.5: Debugging (Real time understanding of robot's perception)
-        showWallsAndWait(walls);
+        updateWallMap(curRow, curCol, walls, direction);         
 
         // Step 2: Floodfill map
         floodfill();
 
         // Step 3: Decide where to go
         int nextRow, nextCol, nextDir;
+        int simulatedDir = direction;
+        getNextMove(curRow, curCol, simulatedDir, &nextRow, &nextCol, &nextDir);
+
+        // Step 3: Decide next move
+        int nextRow, nextCol, nextDir;
         getNextMove(curRow, curCol, direction, &nextRow, &nextCol, &nextDir);
 
-        // Step 4: Rotate and move
+        // Step 3.5: Debug
+        showWallsAndWait(walls, curRow, curCol, direction, nextRow, nextCol, nextDir);
+
+        // Step 4: Rotate if needed
         if (nextDir != direction) {
             motion.rotate(nextDir);
-            direction = nextDir;  // Only update heading
-        } else {
-            motion.fwd_to_wall(nextDir, 35, 450.0, 0.0);
-            curRow = nextRow;
-            curCol = nextCol;
+            direction = nextDir;  // update global direction after turn
         }
 
-        // Step 5: Update state
+        // Step 5: Now move forward in the new direction
+        motion.fwd_to_dis(direction, 180, 35.0);
+
+        // Step 6: Update row/col based on new direction
+        if (direction == NORTH) curRow++;
+        else if (direction == EAST) curCol++;
+        else if (direction == SOUTH) curRow--;
+        else if (direction == WEST) curCol--;
+
+        // Step 7: Update state
         lastRow = curRow;
         lastCol = curCol;
 
-        // Step 6: Check center condition
+        // Step 8: Check center condition
         if (inCenter(curRow, curCol)) {
             stop_motors();
             Serial.println("Reached Center!");
@@ -120,13 +130,35 @@ void loop() {
 }
 
 
-void showWallsAndWait(WallReading w) {
+void showWallsAndWait(WallReading w, int row, int col, int direction, int nextRow, int nextCol, int nextDir) {
     digitalWrite(LED_FRONT, w.front ? HIGH : LOW);
     digitalWrite(LED_LEFT,  w.left  ? HIGH : LOW);
     digitalWrite(LED_RIGHT, w.right ? HIGH : LOW);
 
     while (digitalRead(CONTINUE_BTN) == HIGH) {
-        delay(10);
+        Serial.println("=== Wall & Navigation Debug ===");
+        Serial.print("TOF Front Left: ");  Serial.println(TOF_getDistance(FRONT_LEFT));
+        Serial.print("TOF Front Right: "); Serial.println(TOF_getDistance(FRONT_RIGHT));
+        Serial.print("TOF Left: ");        Serial.println(TOF_getDistance(LEFT));
+        Serial.print("TOF Right: ");       Serial.println(TOF_getDistance(RIGHT));
+
+        Serial.print("Current Position: (");
+        Serial.print(row); Serial.print(", "); Serial.print(col); Serial.println(")");
+
+        Serial.print("Facing Direction: "); Serial.println(direction);
+
+        Serial.print("→ Next Move: Go to (");
+        Serial.print(nextRow); Serial.print(", ");
+        Serial.print(nextCol); Serial.print("), Dir: ");
+        Serial.println(nextDir);
+
+        Serial.println("Waiting for continue button...\n");
+
+        delay(500);
     }
+
+    digitalWrite(LED_LEFT, LOW);
+    digitalWrite(LED_FRONT, LOW);
+    digitalWrite(LED_RIGHT, LOW);
     delay(500);
 }

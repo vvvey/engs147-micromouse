@@ -6,6 +6,8 @@
 #include "Motors.h"
 #include <Arduino.h>
 #include "compensators.h"
+#include "WallLogic.h"
+
 
 Forward2DisControl fwd_2_dis_ctrl; // Allow MotionController to extern
 
@@ -175,6 +177,14 @@ void Forward2DisControl::update() {
     if (abs(remaining_dis) < 10.0) { // If within 10 mm of target distance or very slow
         stop_motors();
         done = true;
+    }
+    float frontL = TOF_getDistance(TOF_FRONT_LEFT); // Check if wall in front
+    float frontR = TOF_getDistance(TOF_FRONT_RIGHT);
+    float frontMin = min(frontL, frontR);
+    if (frontMin > 0 && frontMin < wall_stop) {
+        stop_motors();
+        done = true;
+        return;
     }
 
     index++;
