@@ -160,6 +160,9 @@ void loop() {
 
             if (inCenter(curRow, curCol)) {
                 //motion.rotate(direction+180);
+                while (motion.isBusy()){
+                    motion.update();
+                }
                 stop_motors();
                 current_state = STOP;
             }            
