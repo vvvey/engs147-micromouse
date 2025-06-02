@@ -26,6 +26,8 @@
 #define RACE 2
 #define STOP 3
 
+#define CELL_LENGTH 180
+
 
 void MoveProcess(int goalType);
 void showWallsAndPrintWait(WallReading w, int row, int col, int direction, int nextRow, int nextCol, int nextDir);
@@ -143,12 +145,11 @@ void loop() {
             else if (reversed_path[move_cnt] == 3) {
                 // Count how many consecutive forwards
                 int forward_steps = 0;
-                while (reversed_path[move_cnt + forward_steps] == 3 &&
-                    move_cnt + forward_steps < best_path_index) {
+                while (move_cnt + forward_steps < best_path_index && reversed_path[move_cnt + forward_steps] == 3) {
                     forward_steps++;
                 }
 
-                motion.fwd_to_wall(direction, 35, 450.0, 0.0);
+                motion.fwd_to_dis(direction, CELL_LENGTH*forward_steps, 450.0);
                 move_cnt += forward_steps;
 
                 // Update position just in case we want to do anything with robot in future
@@ -225,7 +226,7 @@ void MoveProcess(int goalType) {
 
         direction = nextDir;
     } else {
-        motion.fwd_to_dis(direction, 180, 450.0);
+        motion.fwd_to_dis(direction, CELL_LENGTH, 450.0);
 
         if (direction == NORTH) curRow++;
         else if (direction == EAST)  curCol++;
