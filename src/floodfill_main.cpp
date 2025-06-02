@@ -93,8 +93,13 @@ void loop() {
             MoveProcess(GOAL_CENTER);
 
             if (inCenter(curRow, curCol)) {
+                while (motion.isBusy()){
+                    motion.update();
+                }
+                /*motion.rotate(180);
+                while (motion.isBusy());
                 motion.rotate(180);
-                motion.rotate(180);
+                while (motion.isBusy());*/
                 stop_motors();
                 Serial.println("Reached center. Entering debug mode.");
                 printMazeDebugLoop();
@@ -199,10 +204,10 @@ void printMazeDebugLoop() {
         Serial.println("===== Maze View =====");
         for (int row = LENGTH - 1; row >= 0; row--) {
             for (int col = 0; col < LENGTH; col++) {
-                Serial.print(existWall(row, col, NORTH) ? "↑" : " ");
-                Serial.print(existWall(row, col, EAST)  ? "→" : " ");
-                Serial.print(existWall(row, col, SOUTH) ? "↓" : " ");
-                Serial.print(existWall(row, col, WEST)  ? "←" : " ");
+                Serial.print(existWall(row, col, NORTH, DEBUG_TRUE) ? "↑" : " ");
+                Serial.print(existWall(row, col, EAST, DEBUG_TRUE)  ? "→" : " ");
+                Serial.print(existWall(row, col, SOUTH, DEBUG_TRUE) ? "↓" : " ");
+                Serial.print(existWall(row, col, WEST, DEBUG_TRUE)  ? "←" : " ");
                 Serial.print(" | ");
             }
             Serial.println();

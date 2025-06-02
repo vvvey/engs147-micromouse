@@ -46,7 +46,7 @@ void setWall(int row, int col, int dir, bool state) {
     }
 }
 
-bool existWall(int row, int col, int dir) {
+bool existWall(int row, int col, int dir, bool safeMode) {
     int index;
 
     switch (dir) {
@@ -79,7 +79,8 @@ bool existWall(int row, int col, int dir) {
             break;
     }
 
-    return true;  // Assume wall exists if index is invalid
+    if (safeMode == DEBUG_TRUE) return false; // Assume it doesn't for debugging purposes
+    else return true; // Assume wall exists if index is invalid
 }
 
 bool inCenter(int row, int col) {

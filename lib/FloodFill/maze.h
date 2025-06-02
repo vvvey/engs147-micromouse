@@ -3,6 +3,8 @@
 
 #define LENGTH 16
 #define WALL_ARRAY_SIZE (LENGTH * (LENGTH - 1))
+#define DEBUG_TRUE true
+#define DEBUG_FALSE false
 
 enum Direction {
     NORTH = 0,
@@ -13,7 +15,7 @@ enum Direction {
 
 void initializeMaze();
 void setWall(int row, int col, int dir, bool state);
-bool existWall(int row, int col, int dir);
+bool existWall(int row, int col, int dir, bool safeMode);
 bool inCenter(int row, int col);
 bool inHome(int row, int col);
 

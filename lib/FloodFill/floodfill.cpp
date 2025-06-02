@@ -49,7 +49,7 @@ void floodfill(int goalType) {
         zToRowCol(z, row, col);
 
         for (int dir = 0; dir < 4; dir++) {
-            if (!existWall(row, col, dir)) {
+            if (!existWall(row, col, dir, DEBUG_FALSE)) {
                 int nextRow = row + (dir == NORTH) - (dir == SOUTH);
                 int nextCol = col + (dir == EAST) - (dir == WEST);
                 int nextZ = rowColtoZ(nextRow, nextCol);
@@ -70,7 +70,7 @@ void getNextMove(int row, int col, int dir, int* nextRow, int* nextCol, int* nex
     int chosenDir = dir;
 
     for (int d = 0; d < 4; d++) {
-        if (!existWall(row, col, d)) {
+        if (!existWall(row, col, d, DEBUG_FALSE)) {
             int r = row + (d == NORTH) - (d == SOUTH);
             int c = col + (d == EAST)  - (d == WEST);
 
