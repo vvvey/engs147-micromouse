@@ -106,19 +106,20 @@ float Forward2WallControl::side_tof_compensator(float tof_L, float tof_R) {
 float Forward2WallControl::frontL_tof_compensator(float tof_front_left) {
     if (tof_front_left < 0) tof_front_left = 200.0;
 
-    // PI controller gains
-    float Kp = 0.026 * 1.1;  
-    float Ki = 0.03;  
-    float T = 0.02;   // Control loop period in seconds
-
     tof_FL_err0 = target_dis_mm - tof_front_left;
 
-    // Accumulate integral of error
-    tof_FL_integral += tof_FL_err0 * T;
-    tof_FL_integral = constrain(tof_FL_integral, -100.0, 100.0); 
+    float a = 0.0312222222222222;
+    float b = -0.0550370370370371;
+    float c = 0.0238148148148148;
+    float d = 1.85185185185185;
+    float e = -0.851851851851852;
 
-    // PI controller output
-    tof_FL_ctrl0 = Kp * tof_FL_err0 + Ki * tof_FL_integral;
+    tof_FL_ctrl0 = a * tof_FL_err0 + b * tof_FL_err1 + c * tof_FL_err2 + d * tof_FL_ctrl1 + e * tof_FL_ctrl2;
+
+    tof_FL_err2 = tof_FL_err1;
+    tof_FL_err1 = tof_FL_err0;
+    tof_FL_ctrl2 = tof_FL_ctrl1;
+    tof_FL_ctrl1 = tof_FL_ctrl0;
 
     return tof_FL_ctrl0;
 }
@@ -126,19 +127,23 @@ float Forward2WallControl::frontL_tof_compensator(float tof_front_left) {
 float Forward2WallControl::frontR_tof_compensator(float tof_front_right) {
     if (tof_front_right < 0) tof_front_right = 200.0;
 
-    // PI controller gains
-    float Kp = 0.03 * 1.1;
-    float Ki = 0.04;
-    float T = 0.02;   // Control loop period in seconds
-
     tof_FR_err0 = target_dis_mm - tof_front_right  + 8.0;
-    // Accumulate integral of error
-    tof_FR_integral += tof_FR_err0 * T;
-    
-    tof_FR_integral = constrain(tof_FR_integral, -100.0, 100.0); // Limit integral to prevent windup
-    // PI controller output
-    tof_FR_ctrl0 = Kp * tof_FR_err0 + Ki * tof_FR_integral;
-    return tof_FL_ctrl0;
+
+    float a = 0.0312222222222222;
+    float b = -0.0550370370370371;
+    float c = 0.0238148148148148;
+    float d = 1.85185185185185;
+    float e = -0.851851851851852;
+
+    tof_FR_ctrl0 = a * tof_FR_err0 + b * tof_FR_err1 + c * tof_FR_err2 + d * tof_FR_ctrl1 + e * tof_FR_ctrl2;
+
+    tof_FR_err2 = tof_FR_err1;
+    tof_FR_err1 = tof_FR_err0;
+    tof_FR_ctrl2 = tof_FR_ctrl1;
+    tof_FR_ctrl1 = tof_FR_ctrl0;
+
+    return tof_FR_ctrl0;
+
 }
 
 
@@ -215,6 +220,17 @@ void Forward2WallControl::update() {
             float pwmR = voltage_to_pwm(-vR);
 
             motor_driver.setSpeeds(pwmR, pwmL);
+
+
+            unsigned currentTime = millis();
+            if (index < arr_size) {
+            time[index] = currentTime;
+            left_v[index] = left_speed;
+            right_v[index] = right_speed;
+        }
+
+        
+
             break;
         }
 
@@ -236,13 +252,7 @@ void Forward2WallControl::update() {
             float pwmR = voltage_to_pwm_dis(vR);
 
             motor_driver.setSpeeds(pwmR, pwmL);
-            
-            // unsigned curtime = millis();
-            // time[index] = curtime;
-            // left_tof[index] = tof_FL;
-            // right_tof[index] = tof_FR;
-            // left_ctrl[index] = vL;
-            // right_ctrl[index] = vR;
+        
             break;
             
         }
@@ -261,20 +271,15 @@ bool Forward2WallControl::isFinished() {
 }
 
 void Forward2WallControl::logData() {
-    // Serial.println("Time, Left Speed, Right Speed");
-    // for (int i = 0; i < index; i++) {
-    //     Serial.print(time[i]);
-    //     Serial.print(", ");
-    //     Serial.print(left_tof[i]);
-    //     Serial.print(", ");
-    //     Serial.print(left_ctrl[i]);
-    //     Serial.print(", ");
-    //     Serial.print(right_tof[i]);
-    //     Serial.print(", ");
-    //     Serial.println(right_ctrl[i]);
-    // }
-    // Serial.println("End of Data");
-    
+    Serial.println("Time, Left Speed, Right Speed");
+    for (int i = 0; i < index; i++) {
+        Serial.print(time[i]);
+        Serial.print(", ");
+        Serial.print(left_v[i]);
+        Serial.print(", ");
+        Serial.println(right_v[i]);
+    }
+    Serial.println("End of Data");
 }
 
 int Forward2WallControl::getTSMillis() {
