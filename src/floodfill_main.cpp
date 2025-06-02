@@ -27,6 +27,7 @@
 
 
 void MoveProcess(int goalType);
+void showWallsAndPrintWait(WallReading w, int row, int col, int direction, int nextRow, int nextCol, int nextDir);
 void showWallsAndWait(WallReading w, int row, int col, int direction, int nextRow, int nextCol, int nextDir);
 void printMazeDebugLoop();
 
@@ -99,7 +100,7 @@ void loop() {
                 /*motion.rotate(180);
                 while (motion.isBusy());
                 motion.rotate(180);
-                while (motion.isBusy());*/
+                while (motion.isBusy());*/ // for fun
                 stop_motors();
                 Serial.println("Reached center. Entering debug mode.");
                 printMazeDebugLoop();
@@ -110,6 +111,9 @@ void loop() {
         case HOME:
             MoveProcess(GOAL_HOME);
             if (inHome(curRow, curCol)) {
+                while (motion.isBusy()){
+                    motion.update();
+                }
                 motion.rotate(NORTH);
                 stop_motors();
                 current_state = RACE;
@@ -146,7 +150,7 @@ void MoveProcess(int goalType) {
     getNextMove(curRow, curCol, direction, &nextRow, &nextCol, &nextDir);
 
     // Step 3.5: Debug
-    showWallsAndWait(walls, curRow, curCol, direction, nextRow, nextCol, nextDir);
+    showWallsAndPrintWait(walls, curRow, curCol, direction, nextRow, nextCol, nextDir);
 
     // Step 4: Decide whether to rotate or move (don't update cell if rotating)
     if (nextDir != direction) {
@@ -164,6 +168,35 @@ void MoveProcess(int goalType) {
     lastRow = curRow;
     lastCol = curCol;
 }
+
+void showWallsAndPrintWait(WallReading w, int row, int col, int direction, int nextRow, int nextCol, int nextDir) {
+    digitalWrite(LED_FRONT, w.front ? HIGH : LOW);
+    digitalWrite(LED_LEFT,  w.left  ? HIGH : LOW);
+    digitalWrite(LED_RIGHT, w.right ? HIGH : LOW);
+
+    // Print once
+    Serial.println("=== Wall Debug Info ===");
+    Serial.print("Position: (");
+    Serial.print(row); Serial.print(", "); Serial.print(col); Serial.println(")");
+
+    Serial.print("Direction: "); Serial.println(direction);
+
+    Serial.print("Walls → Front: "); Serial.print(w.front);
+    Serial.print(", Left: "); Serial.print(w.left);
+    Serial.print(", Right: "); Serial.println(w.right);
+    Serial.println("Press CONTINUE button to proceed...\n");
+
+    // Wait for button
+    while (digitalRead(CONTINUE_BTN) == HIGH) {
+        delay(10);
+    }
+
+    digitalWrite(LED_LEFT, LOW);
+    digitalWrite(LED_FRONT, LOW);
+    digitalWrite(LED_RIGHT, LOW);
+    delay(300);
+}
+
 
 void showWallsAndWait(WallReading w, int row, int col, int direction, int nextRow, int nextCol, int nextDir) {
     digitalWrite(LED_FRONT, w.front ? HIGH : LOW);
