@@ -89,11 +89,6 @@ void loop() {
         // Step 2: Floodfill map
         floodfill();
 
-        // // Step 3: Decide where to go
-        // int nextRow, nextCol, nextDir;
-        // int simulatedDir = direction;
-        // getNextMove(curRow, curCol, simulatedDir, &nextRow, &nextCol, &nextDir);
-
         // Step 3: Decide next move
         int nextRow, nextCol, nextDir;
         getNextMove(curRow, curCol, direction, &nextRow, &nextCol, &nextDir);
@@ -101,26 +96,25 @@ void loop() {
         // Step 3.5: Debug
         showWallsAndWait(walls, curRow, curCol, direction, nextRow, nextCol, nextDir);
 
-        // Step 4: Rotate if needed
+        // Step 4: Decide whether to rotate or move
         if (nextDir != direction) {
             motion.rotate(nextDir);
-            direction = nextDir;  // update global direction after turn
+            direction = nextDir;
+        } else {
+            // Move forward only
+            motion.fwd_to_dis(direction, 180, 450.0);
+            if (direction == NORTH) curRow++;
+            else if (direction == EAST)  curCol++;
+            else if (direction == SOUTH) curRow--;
+            else if (direction == WEST)  curCol--;
         }
 
-        // Step 5: Now move forward in the new direction
-        motion.fwd_to_dis(direction, 180, 35.0);
 
-        // Step 6: Update row/col based on new direction
-        if (direction == NORTH) curRow++;
-        else if (direction == EAST) curCol++;
-        else if (direction == SOUTH) curRow--;
-        else if (direction == WEST) curCol--;
-
-        // Step 7: Update state
+        // Step 5: Update state
         lastRow = curRow;
         lastCol = curCol;
 
-        // Step 8: Check center condition
+        // Step 6: Check center condition
         if (inCenter(curRow, curCol)) {
             stop_motors();
             Serial.println("Reached Center!");
@@ -136,25 +130,25 @@ void showWallsAndWait(WallReading w, int row, int col, int direction, int nextRo
     digitalWrite(LED_RIGHT, w.right ? HIGH : LOW);
 
     while (digitalRead(CONTINUE_BTN) == HIGH) {
-        Serial.println("=== Wall & Navigation Debug ===");
-        Serial.print("TOF Front Left: ");  Serial.println(TOF_getDistance(FRONT_LEFT));
-        Serial.print("TOF Front Right: "); Serial.println(TOF_getDistance(FRONT_RIGHT));
-        Serial.print("TOF Left: ");        Serial.println(TOF_getDistance(LEFT));
-        Serial.print("TOF Right: ");       Serial.println(TOF_getDistance(RIGHT));
+        // Serial.println("=== Wall & Navigation Debug ===");
+        // Serial.print("TOF Front Left: ");  Serial.println(TOF_getDistance(FRONT_LEFT));
+        // Serial.print("TOF Front Right: "); Serial.println(TOF_getDistance(FRONT_RIGHT));
+        // Serial.print("TOF Left: ");        Serial.println(TOF_getDistance(LEFT));
+        // Serial.print("TOF Right: ");       Serial.println(TOF_getDistance(RIGHT));
 
-        Serial.print("Current Position: (");
-        Serial.print(row); Serial.print(", "); Serial.print(col); Serial.println(")");
+        // Serial.print("Current Position: (");
+        // Serial.print(row); Serial.print(", "); Serial.print(col); Serial.println(")");
 
-        Serial.print("Facing Direction: "); Serial.println(direction);
+        // Serial.print("Facing Direction: "); Serial.println(direction);
 
-        Serial.print("→ Next Move: Go to (");
-        Serial.print(nextRow); Serial.print(", ");
-        Serial.print(nextCol); Serial.print("), Dir: ");
-        Serial.println(nextDir);
+        // Serial.print("→ Next Move: Go to (");
+        // Serial.print(nextRow); Serial.print(", ");
+        // Serial.print(nextCol); Serial.print("), Dir: ");
+        // Serial.println(nextDir);
 
-        Serial.println("Waiting for continue button...\n");
+        // Serial.println("Waiting for continue button...\n");
 
-        delay(500);
+        delay(10);
     }
 
     digitalWrite(LED_LEFT, LOW);
