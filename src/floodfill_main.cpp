@@ -30,6 +30,8 @@ void MoveProcess(int goalType);
 void showWallsAndPrintWait(WallReading w, int row, int col, int direction, int nextRow, int nextCol, int nextDir);
 void showWallsAndWait(WallReading w, int row, int col, int direction, int nextRow, int nextCol, int nextDir);
 void printMazeDebugLoop();
+void reversePath(int* original, int* reversed, int length);
+
 
 MotionController motion;
 
@@ -39,6 +41,11 @@ int lastRow = 0, lastCol = 0;
 int direction = NORTH;
 bool run = false;
 int current_state = 0;
+
+int best_path[256] = {0};
+int best_path_index = 0;
+int reversed_path[256];
+
 
 void setup() {
     digitalWrite(LED_LEFT, HIGH);
@@ -127,9 +134,26 @@ void loop() {
                 stop_motors();
                 current_state = RACE;
             }*/
+            Serial.println("=== Best Path (Return Home) ===");
+            for (int i = 0; i < best_path_index; i++) {
+                Serial.print(best_path[i]);
+                Serial.print(" ");
+            }
+            Serial.println("\n===============================");
+
+
+            reversePath(best_path, reversed_path, best_path_index);
+            
+            Serial.println("=== Best Reverse Path (Race Center) ===");
+            for (int i = 0; i < best_path_index; i++) {
+                Serial.print(reversed_path[i]);
+                Serial.print(" ");
+            }
+            Serial.println("\n===============================");
+
             break;
         default:
-            printf("Error, default case.");
+            Serial.println("Error, default case.");
             stop_motors();
             break;
         }
@@ -153,16 +177,33 @@ void MoveProcess(int goalType) {
     showWallsAndPrintWait(walls, curRow, curCol, direction, nextRow, nextCol, nextDir);
 
     // Step 4: Decide whether to rotate or move (don't update cell if rotating)
-    if (nextDir != direction) {
-        motion.rotate(nextDir);
+   if (nextDir != direction) {
+    motion.rotate(nextDir);
+
+    if (goalType == GOAL_HOME) {
+        int delta = (nextDir - direction + 360) % 360;
+        int moveCode = 0;
+        if (delta == 90) moveCode = 1;        // Right
+            else if (delta == 270) moveCode = 0;  // Left
+            else if (delta == 180) moveCode = 2;  // 180 Turn
+
+            best_path[best_path_index++] = moveCode;
+        }
+
         direction = nextDir;
     } else {
         motion.fwd_to_dis(direction, 180, 450.0);
+
         if (direction == NORTH) curRow++;
         else if (direction == EAST)  curCol++;
         else if (direction == SOUTH) curRow--;
         else if (direction == WEST)  curCol--;
+
+        if (goalType == GOAL_HOME) {
+            best_path[best_path_index++] = 3;  // Straight
+        }
     }
+
 
     // Step 5: Update state
     lastRow = curRow;
@@ -187,9 +228,10 @@ void showWallsAndPrintWait(WallReading w, int row, int col, int direction, int n
     Serial.println("Press CONTINUE button to proceed...\n");
 
     // Wait for button
-    while (digitalRead(CONTINUE_BTN) == HIGH) {
-        delay(10);
-    }
+    //while (digitalRead(CONTINUE_BTN) == HIGH) {
+      //  delay(10);
+    //}
+    delay(500);
 
     digitalWrite(LED_LEFT, LOW);
     digitalWrite(LED_FRONT, LOW);
@@ -251,4 +293,19 @@ void printMazeDebugLoop() {
 
     
     delay(300); 
+}
+
+void reversePath(int* original, int* reversed, int length) {
+    for (int i = 0; i < length; i++) {
+        int t = original[length - 1 - i];  // Reverse order
+
+        // Only need to change left and right turn I believe
+        switch (t) {
+            case 0: reversed[i] = 1; break; // LEFT --> RIGHT
+            case 1: reversed[i] = 0; break; // RIGHT --> LEFT
+            case 2: reversed[i] = 2; break; 
+            case 3: reversed[i] = 3; break; 
+            default: reversed[i] = t; break;
+        }
+    }
 }
