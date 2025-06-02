@@ -126,6 +126,7 @@ void loop() {
                     motion.update();
                 }
                 motion.rotate(NORTH);
+                direction = NORTH;
                 stop_motors();
                 reversePath(best_path, reversed_path, best_path_index);
                 current_state = RACE;
