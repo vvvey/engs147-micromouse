@@ -24,6 +24,7 @@
 #define SEARCH 0
 #define HOME 1
 #define RACE 2
+#define STOP 3
 
 
 void MoveProcess(int goalType);
@@ -45,6 +46,7 @@ int current_state = 0;
 int best_path[256] = {0};
 int best_path_index = 0;
 int reversed_path[256];
+int move_cnt = 0;
 
 
 void setup() {
@@ -123,34 +125,62 @@ void loop() {
                 }
                 motion.rotate(NORTH);
                 stop_motors();
+                reversePath(best_path, reversed_path, best_path_index);
                 current_state = RACE;
             }
             break;
         case RACE:
-            /*MoveProcess(GOAL_CENTER);
+            if (reversed_path[move_cnt] == 0) {
+                motion.rotate((direction + 270) % 360);  // Left turn
+                direction = (direction + 270) % 360;
+                move_cnt++;
+            }
+            else if (reversed_path[move_cnt] == 1) {
+                motion.rotate((direction + 90) % 360);   // Right turn
+                direction = (direction + 90) % 360;
+                move_cnt++;
+            }
+            else if (reversed_path[move_cnt] == 3) {
+                // Count how many consecutive forwards
+                int forward_steps = 0;
+                while (reversed_path[move_cnt + forward_steps] == 3 &&
+                    move_cnt + forward_steps < best_path_index) {
+                    forward_steps++;
+                }
 
-            if (inHome(curRow, curCol)) {
-                motion.rotate(direction+180);
+                motion.fwd_to_wall(direction, 35, 450.0, 0.0);
+                move_cnt += forward_steps;
+
+                // Update position just in case we want to do anything with robot in future
+                if (direction == NORTH) curRow += forward_steps;
+                else if (direction == SOUTH) curRow -= forward_steps;
+                else if (direction == EAST)  curCol += forward_steps;
+                else if (direction == WEST)  curCol -= forward_steps;
+            }
+
+            if (inCenter(curRow, curCol)) {
+                //motion.rotate(direction+180);
                 stop_motors();
-                current_state = RACE;
-            }*/
-            Serial.println("=== Best Path (Return Home) ===");
+                current_state = STOP;
+            }            
+            /*Serial.println("=== Best Path (Return Home) ===");
             for (int i = 0; i < best_path_index; i++) {
                 Serial.print(best_path[i]);
                 Serial.print(" ");
             }
             Serial.println("\n===============================");
-
-
-            reversePath(best_path, reversed_path, best_path_index);
             
             Serial.println("=== Best Reverse Path (Race Center) ===");
             for (int i = 0; i < best_path_index; i++) {
                 Serial.print(reversed_path[i]);
                 Serial.print(" ");
             }
-            Serial.println("\n===============================");
+            Serial.println("\n===============================");*/
 
+            break;
+        case STOP:
+            Serial.println("Done.");
+            stop_motors();
             break;
         default:
             Serial.println("Error, default case.");
@@ -238,7 +268,6 @@ void showWallsAndPrintWait(WallReading w, int row, int col, int direction, int n
     digitalWrite(LED_RIGHT, LOW);
     delay(300);
 }
-
 
 void showWallsAndWait(WallReading w, int row, int col, int direction, int nextRow, int nextCol, int nextDir) {
     digitalWrite(LED_FRONT, w.front ? HIGH : LOW);
