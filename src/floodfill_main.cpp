@@ -113,22 +113,37 @@ void loop() {
                 motion.rotate(180);
                 while (motion.isBusy());*/ // for fun
                 stop_motors();
-                Serial.println("Reached center. Entering debug mode.");
-                printMazeDebugLoop();
-                Serial.println("Continuing to HOME...");
+                // Serial.println("Reached center. Entering debug mode.");
+                // printMazeDebugLoop();
+                // Serial.println("Continuing to HOME...");
                 current_state = HOME;
             }
             break;
         case HOME:
             MoveProcess(GOAL_HOME);
             if (inHome(curRow, curCol)) {
+                
+
+                
                 while (motion.isBusy()){
                     motion.update();
                 }
+                
                 motion.rotate(NORTH);
+                while (motion.isBusy()){
+                    motion.update();
+                }
+            
                 direction = NORTH;
                 stop_motors();
                 reversePath(best_path, reversed_path, best_path_index);
+
+
+                Serial.println("Reversed Path:");
+                for (int i = 0; i < best_path_index; i++) {
+                    Serial.print(reversed_path[i]);
+                    Serial.print(" ");
+                }
                 current_state = RACE;
             }
             break;
@@ -137,11 +152,13 @@ void loop() {
                 motion.rotate((direction + 270) % 360);  // Left turn
                 direction = (direction + 270) % 360;
                 move_cnt++;
+                delay(500); // Small delay to allow rotation to complete
             }
             else if (reversed_path[move_cnt] == 1) {
                 motion.rotate((direction + 90) % 360);   // Right turn
                 direction = (direction + 90) % 360;
                 move_cnt++;
+                delay(500); // Small delay to allow rotation to complete
             }
             else if (reversed_path[move_cnt] == 3) {
                 // Count how many consecutive forwards
@@ -158,6 +175,8 @@ void loop() {
                 else if (direction == SOUTH) curRow -= forward_steps;
                 else if (direction == EAST)  curCol += forward_steps;
                 else if (direction == WEST)  curCol -= forward_steps;
+
+                delay(500); // Small delay to allow movement to complete
             }
 
             if (inCenter(curRow, curCol)) {
