@@ -16,13 +16,13 @@ WallReading readWalls(int row, int col, int dir) {
 
     // Only consider valid readings (>= 0)
     if (front_left_dist >= 0 && front_right_dist >= 0)
-        front_wall = (front_left_dist < wall_threshold) && (front_right_dist < wall_threshold);
+        front_wall = (front_left_dist < front_threshold) && (front_right_dist < front_threshold);
 
     if (left_dist >= 0)
-        left_wall = left_dist < wall_threshold;
+        left_wall = left_dist < side_threshold;
 
     if (right_dist >= 0)
-        right_wall = right_dist < wall_threshold;
+        right_wall = right_dist < side_threshold;
 
     result.front = front_wall;
     result.left  = left_wall;

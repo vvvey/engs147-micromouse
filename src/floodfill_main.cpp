@@ -107,7 +107,7 @@ void loop() {
             if (inCenter(curRow, curCol)) {
                 while (motion.isBusy()){
                     motion.update();
-                }
+                } 
                 /*motion.rotate(180);
                 while (motion.isBusy());
                 motion.rotate(180);
@@ -228,10 +228,17 @@ void MoveProcess(int goalType) {
     getNextMove(curRow, curCol, direction, &nextRow, &nextCol, &nextDir);
 
     // Step 3.5: Debug
-    showWallsAndPrintWait(walls, curRow, curCol, direction, nextRow, nextCol, nextDir);
+    //showWallsAndPrintWait(walls, curRow, curCol, direction, nextRow, nextCol, nextDir); // Takes time, removing to see results
 
     // Step 4: Decide whether to rotate or move (don't update cell if rotating)
    if (nextDir != direction) {
+    if (walls.front){
+        motion.fwd_to_wall(direction, 35, 450.0, 0.0); // Recover error by bringing robot closer to wall
+        while (motion.isBusy()){
+            motion.update();
+        }
+        stop_motors(); 
+    }
     motion.rotate(nextDir);
 
     if (goalType == GOAL_HOME) {

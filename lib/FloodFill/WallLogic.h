@@ -4,7 +4,8 @@
 #include "maze.h"   // for LENGTH, setWall
 #include "TOF.h"    // for TOF_getDistance()
 
-#define wall_threshold 80.0
+#define side_threshold 80.0
+#define front_threshold 120.0
 #define wall_stop 50.0
 
 struct WallReading {

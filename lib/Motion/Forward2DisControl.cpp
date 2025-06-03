@@ -156,7 +156,7 @@ void Forward2DisControl::update() {
     float remaining_dis = 0.5f * ((target_dis_mm * dealth_rec - left_dis) + (target_dis_mm * dealth_rec - right_dis));
 
     // Trapezoidal deceleration: Linearly scale down speed as it nears target
-    float min_speed = 60.0;   // mm/s, avoid stalling
+    float min_speed = 75.0;   // mm/s, avoid stalling
     float max_speed = speedX; // original set speed
     float slow_down_distance = 250.0;  // start slowing down within 250 mm
 
@@ -174,18 +174,28 @@ void Forward2DisControl::update() {
 
     motor_driver.setSpeeds(pwmR, pwmL);
 
-    if (abs(remaining_dis) < 10.0) { // If within 10 mm of target distance or very slow
+    if (abs(remaining_dis) < 7.0) { // If within 10 mm of target distance or very slow
         stop_motors();
         done = true;
     }
-    float frontL = TOF_getDistance(TOF_FRONT_LEFT); // Check if wall in front
+
+    // if (index % 10 == 0) {
+    //         float frontR = TOF_getDistance(TOF_FRONT_RIGHT);
+    //         float frontMin =frontR;
+    //         if (frontMin > 0 && frontMin < wall_stop) {
+    //             stop_motors();
+    //             done = true;
+    //             return;
+    //         }
+    // }
+    /*float frontL = TOF_getDistance(TOF_FRONT_LEFT); // Check if wall in front
     float frontR = TOF_getDistance(TOF_FRONT_RIGHT);
     float frontMin = min(frontL, frontR);
     if (frontMin > 0 && frontMin < wall_stop) {
         stop_motors();
         done = true;
         return;
-    }
+    }*/
 
     index++;
 }
