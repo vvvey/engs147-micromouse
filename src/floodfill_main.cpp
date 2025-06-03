@@ -26,7 +26,11 @@
 #define RACE 2
 #define STOP 3
 
-#define CELL_LENGTH 180
+#define CELL_LENGTH 185 // Distance to stop in fwd_dis
+#define DISTANCE_SPEED 500.0
+#define DISTANCE_SPEED_RACE 450.0
+#define CELL_LENGTH_RACE 180
+#define FWD_WALL_DISTANCE 30
 
 
 void MoveProcess(int goalType);
@@ -170,11 +174,15 @@ void loop() {
                 if (digitalRead(LOG_BTN) == LOW) {break;}
             }*/
             if ((stuff_path[move_cnt] == 0) || (stuff_path[move_cnt] == 1)){
-                motion.fwd_to_wall(direction, 30, 450.0, 0.0); // Recover error by bringing robot closer to wall
-                while (motion.isBusy()){
-                    motion.update();
+                float front_left_dist  = TOF_getDistance(FRONT_LEFT); 
+                float front_right_dist = TOF_getDistance(FRONT_RIGHT);
+                if ((front_left_dist >= 0 && front_right_dist >= 0) && (front_left_dist < front_threshold) && (front_right_dist < front_threshold)){
+                    motion.fwd_to_wall(direction, FWD_WALL_DISTANCE, DISTANCE_SPEED_RACE, 0.0); // Recover error by bringing robot closer to wall
+                    while (motion.isBusy()){
+                        motion.update();
+                    }
+                    delay(100);
                 }
-                delay(100);
 
                 if (stuff_path[move_cnt] == 0) {
                     motion.rotate((direction + 270) % 360);  // Left turn
@@ -196,7 +204,7 @@ void loop() {
                     forward_steps++;
                 }
 
-                motion.fwd_to_dis(direction, CELL_LENGTH*forward_steps, 450.0);
+                motion.fwd_to_dis(direction, CELL_LENGTH_RACE*forward_steps, DISTANCE_SPEED_RACE);
                 move_cnt += forward_steps;
 
                 // Update position just in case we want to do anything with robot in future
@@ -263,7 +271,7 @@ void MoveProcess(int goalType) {
     // Step 4: Decide whether to rotate or move (don't update cell if rotating)
    if (nextDir != direction) {
     if (walls.front){
-        motion.fwd_to_wall(direction, 30, 450.0, 0.0); // Recover error by bringing robot closer to wall
+        motion.fwd_to_wall(direction, FWD_WALL_DISTANCE, DISTANCE_SPEED, 0.0); // Recover error by bringing robot closer to wall
         while (motion.isBusy()){
             motion.update();
         }
@@ -283,7 +291,7 @@ void MoveProcess(int goalType) {
 
         direction = nextDir;
     } else {
-        motion.fwd_to_dis(direction, CELL_LENGTH, 450.0);
+        motion.fwd_to_dis(direction, CELL_LENGTH, DISTANCE_SPEED);
 
         if (direction == NORTH) curRow++;
         else if (direction == EAST)  curCol++;

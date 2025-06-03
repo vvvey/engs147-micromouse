@@ -26,7 +26,11 @@
 #define RACE 2
 #define STOP 3
 
-#define CELL_LENGTH 180
+#define CELL_LENGTH 185 // Distance to stop in fwd_dis
+#define DISTANCE_SPEED 500.0
+#define DISTANCE_SPEED_RACE 450.0
+#define CELL_LENGTH_RACE 180
+#define FWD_WALL_DISTANCE 30
 
 
 void MoveProcess(int goalType);
@@ -128,12 +132,27 @@ void loop() {
                 } 
                 direction = NORTH;
                 floodfill(GOAL_HOME);
-                buildBestPathFromFloodfillDebug(0,0, stuff_path, &pathLen);
+                //buildBestPathFromFloodfillDebug(curRow, curCol, stuff_path, &pathLen);
             }
             break;
         case RACE:
+            while(1){
+                buildBestPathFromFloodfillDebug(curRow,curCol, stuff_path, &pathLen);
+                delay(1000);
+                if (digitalRead(LOG_BTN) == LOW) {break;}
+            }
+            while(1){
+                Serial.println("=== Path to Center (Encoded) ===");
+                for (int i = 0; i < pathLen; i++) {
+                    Serial.print(stuff_path[i]);
+                    Serial.print(" ");
+                }
+                Serial.println("\n===============================");
+                delay(1000);
+                if (digitalRead(LOG_BTN) == LOW) {break;}
+            }
             if ((stuff_path[move_cnt] == 0) || (stuff_path[move_cnt] == 1)){
-                motion.fwd_to_wall(direction, 30, 450.0, 0.0); // Recover error by bringing robot closer to wall
+                motion.fwd_to_wall(direction, FWD_WALL_DISTANCE, DISTANCE_SPEED_RACE, 0.0); // Recover error by bringing robot closer to wall
                 while (motion.isBusy()){
                     motion.update();
                 }
@@ -159,7 +178,7 @@ void loop() {
                     forward_steps++;
                 }
 
-                motion.fwd_to_dis(direction, CELL_LENGTH*forward_steps, 450.0);
+                motion.fwd_to_dis(direction, CELL_LENGTH_RACE*forward_steps, DISTANCE_SPEED_RACE);
                 move_cnt += forward_steps;
 
                 // Update position just in case we want to do anything with robot in future
@@ -171,7 +190,7 @@ void loop() {
                 delay(200); // Small delay to allow movement to complete
             }
 
-            if (inCenter(curRow, curCol)) {
+            if (inHome(curRow, curCol)) {
                 //motion.rotate(direction+180);
                 while (motion.isBusy()){
                     motion.update();
@@ -226,7 +245,7 @@ void MoveProcess(int goalType) {
     // Step 4: Decide whether to rotate or move (don't update cell if rotating)
    if (nextDir != direction) {
     if (walls.front){
-        motion.fwd_to_wall(direction, 30, 450.0, 0.0); // Recover error by bringing robot closer to wall
+        motion.fwd_to_wall(direction, FWD_WALL_DISTANCE, DISTANCE_SPEED, 0.0); // Recover error by bringing robot closer to wall
         while (motion.isBusy()){
             motion.update();
         }
@@ -246,7 +265,7 @@ void MoveProcess(int goalType) {
 
         direction = nextDir;
     } else {
-        motion.fwd_to_dis(direction, CELL_LENGTH, 450.0);
+        motion.fwd_to_dis(direction, CELL_LENGTH, DISTANCE_SPEED);
 
         if (direction == NORTH) curRow++;
         else if (direction == EAST)  curCol++;
@@ -378,7 +397,7 @@ void buildBestPathFromFloodfillDebug(int startRow, int startCol, int* path, int*
 
     Serial.println("=== Debug: Building Best Path from Floodfill ===");
 
-    while (!inCenter(row, col) && index < 256) {
+    while (!inHome(row, col) && index < 256) {
         Serial.print("At cell: (");
         Serial.print(row);
         Serial.print(", ");
@@ -453,12 +472,7 @@ void buildBestPathFromFloodfillDebug(int startRow, int startCol, int* path, int*
             tempDir = bestDir;
         }
 
-        if (inCenter(row, col)) {
-            Serial.print("Reached center at: (");
-            Serial.print(row);
-            Serial.print(", ");
-            Serial.print(col);
-            Serial.println(")");
+        if (inHome(row, col)) {
             break;
         }
         delay(100);
