@@ -20,6 +20,11 @@ void setWall(int row, int col, int dir, bool state) {
             if (row < LENGTH - 1) {
                 index = row * LENGTH + col;
                 horizontalWalls[index] = state;
+                int neighborRow = row + 1;
+                if (neighborRow < LENGTH) {
+                    int neighborIndex = neighborRow * LENGTH + col; // same index
+                    horizontalWalls[neighborIndex] = state; // reflects SOUTH of neighbor
+                }
             }
             break;
 
@@ -27,24 +32,40 @@ void setWall(int row, int col, int dir, bool state) {
             if (row > 0) {
                 index = (row - 1) * LENGTH + col;
                 horizontalWalls[index] = state;
+                int neighborRow = row - 1;
+                if (neighborRow >= 0) {
+                    int neighborIndex = neighborRow * LENGTH + col;
+                    horizontalWalls[neighborIndex] = state;
+                }
             }
             break;
 
         case EAST:
             if (col < LENGTH - 1) {
-                index = col * LENGTH + row;
+                index = row * LENGTH + col;
                 verticalWalls[index] = state;
+                int neighborCol = col + 1;
+                if (neighborCol < LENGTH) {
+                    int neighborIndex = row * LENGTH + neighborCol;
+                    verticalWalls[neighborIndex] = state;
+                }
             }
             break;
 
         case WEST:
             if (col > 0) {
-                index = (col - 1) * LENGTH + row;
+                index = row * LENGTH + (col - 1);
                 verticalWalls[index] = state;
+                int neighborCol = col - 1;
+                if (neighborCol >= 0) {
+                    int neighborIndex = row * LENGTH + (neighborCol);
+                    verticalWalls[neighborIndex] = state;
+                }
             }
             break;
     }
 }
+
 
 bool existWall(int row, int col, int dir, bool safeMode) {
     int index;
@@ -66,21 +87,31 @@ bool existWall(int row, int col, int dir, bool safeMode) {
 
         case EAST:
             if (col < LENGTH - 1) {
-                index = col * LENGTH + row;
+                index = row * LENGTH + col;  //
                 return verticalWalls[index];
             }
             break;
 
         case WEST:
             if (col > 0) {
-                index = (col - 1) * LENGTH + row;
+                index = row * LENGTH + (col - 1);  // 
                 return verticalWalls[index];
             }
             break;
     }
 
-    if (safeMode == DEBUG_TRUE) return false; // Assume it doesn't for debugging purposes
-    else return true; // Assume wall exists if index is invalid
+    // Default/fallback logic
+    if (safeMode == DEBUG_TRUE) return false;
+    else return true;
+}
+
+
+bool* getHorizontalWalls() {
+    return horizontalWalls;
+}
+
+bool* getVerticalWalls() {
+    return verticalWalls;
 }
 
 bool inCenter(int row, int col) {

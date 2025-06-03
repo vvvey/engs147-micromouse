@@ -18,6 +18,8 @@ void setWall(int row, int col, int dir, bool state);
 bool existWall(int row, int col, int dir, bool safeMode);
 bool inCenter(int row, int col);
 bool inHome(int row, int col);
+bool* getHorizontalWalls();
+bool* getVerticalWalls();
 
 // Convert (row, col) to flat index
 inline int rowColtoZ(int row, int col) {

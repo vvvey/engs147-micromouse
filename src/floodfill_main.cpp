@@ -34,7 +34,9 @@ void showWallsAndPrintWait(WallReading w, int row, int col, int direction, int n
 void showWallsAndWait(WallReading w, int row, int col, int direction, int nextRow, int nextCol, int nextDir);
 void printMazeDebugLoop();
 void reversePath(int* original, int* reversed, int& length);
-
+void blinkLEDS();
+void buildBestPathFromFloodfill(int startRow, int startCol, int* path, int* pathLen);
+void buildBestPathFromFloodfillDebug(int startRow, int startCol, int* path, int* pathLen);
 
 MotionController motion;
 
@@ -50,6 +52,9 @@ int best_path_index = 0;
 int reversed_path[256];
 int move_cnt = 0;
 
+
+int pathToCenter[256];
+int pathLen_new = 0;
 
 void setup() {
     digitalWrite(LED_LEFT, HIGH);
@@ -113,6 +118,7 @@ void loop() {
                 motion.rotate(180);
                 while (motion.isBusy());*/ // for fun
                 stop_motors();
+                blinkLEDS();
                 // Serial.println("Reached center. Entering debug mode.");
                 // printMazeDebugLoop();
                 // Serial.println("Continuing to HOME...");
@@ -120,7 +126,21 @@ void loop() {
             }
             break;
         case HOME:
-            MoveProcess(GOAL_HOME);
+            while(1){
+                buildBestPathFromFloodfillDebug(0, 0, pathToCenter, &pathLen_new);
+                delay(2000);
+                if (digitalRead(LOG_BTN) == LOW) {break;}
+            }
+            while(1){
+                Serial.println("=== Path to Center (Encoded) ===");
+                for (int i = 0; i < pathLen_new; i++) {
+                    Serial.print(pathToCenter[i]);
+                    Serial.print(" ");
+                }
+                Serial.println("\n===============================");
+                delay(1000);
+            }
+            /*MoveProcess(GOAL_HOME);
             if (inHome(curRow, curCol)) {
                 
 
@@ -136,6 +156,7 @@ void loop() {
             
                 direction = NORTH;
                 stop_motors();
+                blinkLEDS();
                 reversePath(best_path, reversed_path, best_path_index);
 
 
@@ -145,20 +166,57 @@ void loop() {
                     Serial.print(" ");
                 }
                 current_state = RACE;
-            }
+            }*/
             break;
         case RACE:
-            if (reversed_path[move_cnt] == 0) {
-                motion.rotate((direction + 270) % 360);  // Left turn
-                direction = (direction + 270) % 360;
-                move_cnt++;
-                delay(500); // Small delay to allow rotation to complete
+            Serial.println("About to RACE");
+            floodfill(GOAL_CENTER);  // Step 1: build updated gradient to center
+            //buildBestPathFromFloodfill(0, 0, pathToCenter, &pathLen_new);  // Step 2: follow that gradient
+
+            while(1){
+                buildBestPathFromFloodfillDebug(0, 0, pathToCenter, &pathLen_new);
+                delay(2000);
+                if (digitalRead(LOG_BTN) == LOW) {break;}
             }
-            else if (reversed_path[move_cnt] == 1) {
-                motion.rotate((direction + 90) % 360);   // Right turn
-                direction = (direction + 90) % 360;
-                move_cnt++;
-                delay(500); // Small delay to allow rotation to complete
+            while(1){
+                Serial.println("=== Path to Center (Encoded) ===");
+                for (int i = 0; i < pathLen_new; i++) {
+                    Serial.print(pathToCenter[i]);
+                    Serial.print(" ");
+                }
+                Serial.println("\n===============================");
+                delay(1000);
+            }
+
+            current_state = STOP;
+
+            /*if ((reversed_path[move_cnt] == 0) || (reversed_path[move_cnt] == 1)) {
+                float front_left_dist  = TOF_getDistance(FRONT_LEFT); 
+                float front_right_dist = TOF_getDistance(FRONT_RIGHT);
+                if (front_left_dist >= 0 && front_right_dist >= 0){
+                    if ((front_left_dist < front_threshold) && (front_right_dist < front_threshold)){
+                        motion.fwd_to_wall(direction, 35, 450.0, 0.0);
+                        while (motion.isBusy()){
+                            motion.update();
+                        }
+                        stop_motors(); 
+                        printWallArrays();
+                        delay(300);
+                    }
+                }
+                
+                if (reversed_path[move_cnt] == 0) {
+                    motion.rotate((direction + 270) % 360);  // Left turn
+                    direction = (direction + 270) % 360;
+                    move_cnt++;
+                    delay(500);
+                }
+                else {
+                    motion.rotate((direction + 90) % 360);   // Right turn
+                    direction = (direction + 90) % 360;
+                    move_cnt++;
+                    delay(500);
+                }
             }
             else if (reversed_path[move_cnt] == 3) {
                 // Count how many consecutive forwards
@@ -185,6 +243,7 @@ void loop() {
                     motion.update();
                 }
                 stop_motors();
+                blinkLEDS();
                 current_state = STOP;
             }            
             /*Serial.println("=== Best Path (Return Home) ===");
@@ -199,8 +258,8 @@ void loop() {
                 Serial.print(reversed_path[i]);
                 Serial.print(" ");
             }
-            Serial.println("\n===============================");*/
-
+            Serial.println("\n===============================");
+            */
             break;
         case STOP:
             Serial.println("Done.");
@@ -238,6 +297,7 @@ void MoveProcess(int goalType) {
             motion.update();
         }
         stop_motors(); 
+        delay(300);
     }
     motion.rotate(nextDir);
 
@@ -376,4 +436,296 @@ void reversePath(int* original, int* reversed, int& length) {
 
     length = newIndex; // Update original index to reflect new length
 }
+
+void blinkLEDS(){
+    digitalWrite(LED_LEFT, HIGH);
+    digitalWrite(LED_FRONT, HIGH);
+    digitalWrite(LED_RIGHT, HIGH);
+    delay(1000);
+    digitalWrite(LED_LEFT, LOW);
+    digitalWrite(LED_FRONT, LOW);
+    digitalWrite(LED_RIGHT, LOW);
+}
+
+
+void buildBestPathFromFloodfill(int startRow, int startCol, int* path, int* pathLen) {
+    int tempDir = NORTH;
+    int row = startRow;
+    int col = startCol;
+    int index = 0;
+
+    while (!inCenter(row, col) && index < 256) {
+        int minVal = 255;
+        int bestDir = -1;
+        int nextRow = row;
+        int nextCol = col;
+
+        for (int d = 0; d < 4; d++) {
+            int r = row + (d == NORTH) - (d == SOUTH);
+            int c = col + (d == EAST) - (d == WEST);
+
+            if (!isValid(r, c)) continue;
+            if (existWall(row, col, d, DEBUG_FALSE)) continue;
+
+            int val = getFloodfillValue(r, c);
+            if (val == UNDEFINED) continue;  // Skip if floodfill failed here
+
+            if (val < minVal) {
+                minVal = val;
+                bestDir = d;
+                nextRow = r;
+                nextCol = c;
+            }
+        }
+
+        if (bestDir == -1) {
+            Serial.println("Path dead-end: floodfill may be invalid.");
+            break;
+        }
+
+        // Encode movement
+        int delta = (bestDir - tempDir + 4) % 4;
+        int move = -1;
+
+        if (delta == 0) {
+            move = 3;  // Forward
+            // Update position here
+            row += (bestDir == NORTH) - (bestDir == SOUTH);
+            col += (bestDir == EAST)  - (bestDir == WEST);
+            tempDir = bestDir;  // Facing same direction after forward move
+        }
+        else if (delta == 1) {
+            move = 1;  // Right
+            tempDir = (tempDir + 90) % 360;
+        }
+        else if (delta == 2) {
+            move = 2;  // 180
+            tempDir = (tempDir + 180) % 360;
+        }
+        else if (delta == 3) {
+            move = 0;  // Left
+            tempDir = (tempDir + 270) % 360;
+        }
+
+        path[index++] = move;
+
+
+
+        if (inCenter(row, col)) break;
+
+    }
+
+
+    *pathLen = index;
+}
+
+/*
+void buildBestPathFromFloodfillDebug(int startRow, int startCol, int* path, int* pathLen) {
+    int directions[4] = {NORTH, EAST, SOUTH, WEST};
+    int tempDir = NORTH;
+    int row = startRow;
+    int col = startCol;
+    int index = 0;
+
+    Serial.println("=== Debug: Building Best Path from Floodfill ===");
+
+    while (!inCenter(row, col) && index < 256) {
+        Serial.print("At cell: (");
+        Serial.print(row);
+        Serial.print(", ");
+        Serial.print(col);
+        Serial.println(")");
+
+        int minVal = 255;
+        int bestDir = -1;
+        int nextRow = row;
+        int nextCol = col;
+
+        for (int d = 0; d < 4; d++) {
+            int r = row + (d == NORTH) - (d == SOUTH);
+            int c = col + (d == EAST)  - (d == WEST);
+
+            if (!isValid(r, c)) continue;
+            if (existWall(row, col, d, DEBUG_FALSE)) {
+                Serial.print("  Wall exists at dir ");
+                Serial.println(d);
+                continue;
+            }
+
+            int val = getFloodfillValue(r, c);
+            if (val == UNDEFINED) {
+                Serial.print("  Skipping undefined floodfill at dir ");
+                Serial.println(d);
+                continue;
+            }
+
+            Serial.print("  Direction ");
+            Serial.print(d);
+            Serial.print(": floodfill val = ");
+            Serial.println(val);
+
+            if (val < minVal) {
+                minVal = val;
+                bestDir = d;
+                nextRow = r;
+                nextCol = c;
+            }
+        }
+
+        if (bestDir == -1) {
+            Serial.println("  Path dead-end: floodfill may be invalid.");
+            break;
+        }
+
+        int delta = (bestDir - tempDir + 4) % 4;
+        int move = -1;
+
+        if (delta == 0) {
+            move = 3; // Forward
+            row += (bestDir == NORTH) - (bestDir == SOUTH);
+            col += (bestDir == EAST)  - (bestDir == WEST);
+            tempDir = bestDir;  // Facing same direction after forward move
+            // tempDir stays same
+        } else if (delta == 1) {
+            move = 1; // Right
+            tempDir = (tempDir + 1) % 4;
+        } else if (delta == 2) {
+            move = 2; // 180
+            tempDir = (tempDir + 2) % 4;
+        } else if (delta == 3) {
+            move = 0; // Left
+            tempDir = (tempDir + 3) % 4;
+        }
+
+        Serial.print("  Chosen direction: ");
+        Serial.print(bestDir);
+        Serial.print(", move encoded as: ");
+        Serial.println(move);
+
+        path[index++] = move;
+
+
+        if (inCenter(row, col)) {
+            Serial.print("Reached center at: (");
+            Serial.print(row);
+            Serial.print(", ");
+            Serial.print(col);
+            Serial.println(")");
+            break;
+        }
+        delay(100);
+    }
+
+    *pathLen = index;
+
+    Serial.print("Total path length: ");
+    Serial.println(*pathLen);
+    Serial.println("===============================================");
+}
+*/
+
+void buildBestPathFromFloodfillDebug(int startRow, int startCol, int* path, int* pathLen) {
+    int directions[4] = {NORTH, EAST, SOUTH, WEST};
+    int tempDir = NORTH;
+    int row = startRow;
+    int col = startCol;
+    int index = 0;
+
+    Serial.println("=== Debug: Building Best Path from Floodfill ===");
+
+    while (!inCenter(row, col) && index < 256) {
+        Serial.print("At cell: (");
+        Serial.print(row);
+        Serial.print(", ");
+        Serial.print(col);
+        Serial.println(")");
+
+        int minVal = 255;
+        int bestDir = -1;
+        int nextRow = row;
+        int nextCol = col;
+
+        for (int i = 0; i < 4; i++) {
+            int d = directions[i];
+            int r = row + (d == NORTH) - (d == SOUTH);
+            int c = col + (d == EAST)  - (d == WEST);
+
+            if (!isValid(r, c)) continue;
+            
+            //int oppDir = (d + 180) % 360;
+            if (existWall(row, col, d, DEBUG_FALSE)) {
+                Serial.print("  Wall exists at dir ");
+                Serial.println(d);
+                continue;
+            }
+
+            int val = getFloodfillValue(r, c);
+            if (val == UNDEFINED) {
+                Serial.print("  Skipping undefined floodfill at dir ");
+                Serial.println(d);
+                continue;
+            }
+
+            Serial.print("  Direction ");
+            Serial.print(d);
+            Serial.print(": floodfill val = ");
+            Serial.println(val);
+
+            if (val < minVal) {
+                minVal = val;
+                bestDir = d;
+                nextRow = r;
+                nextCol = c;
+            }
+        }
+
+        if (bestDir == -1) {
+            Serial.println("  Path dead-end: floodfill may be invalid.");
+            break;
+        }
+
+        int delta = ((bestDir - tempDir + 360) % 360) / 90;
+        int move = -1;
+
+        if (delta == 0) {
+            move = 3; // Forward
+            row = nextRow;
+            col = nextCol;
+        } else if (delta == 1) {
+            move = 1; // Right
+        } else if (delta == 2) {
+            move = 2; // 180
+        } else if (delta == 3) {
+            move = 0; // Left
+        }
+
+        Serial.print("  Chosen direction: ");
+        Serial.print(bestDir);
+        Serial.print(", move encoded as: ");
+        Serial.println(move);
+
+        path[index++] = move;
+
+        if (delta != 0) {
+            tempDir = bestDir;
+        }
+
+        if (inCenter(row, col)) {
+            Serial.print("Reached center at: (");
+            Serial.print(row);
+            Serial.print(", ");
+            Serial.print(col);
+            Serial.println(")");
+            break;
+        }
+        delay(100);
+    }
+
+    *pathLen = index;
+
+    Serial.print("Total path length: ");
+    Serial.println(*pathLen);
+    Serial.println("===============================================");
+}
+
 
