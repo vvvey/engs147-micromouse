@@ -32,6 +32,7 @@
 #define CELL_LENGTH_RACE 180
 #define FWD_WALL_DISTANCE 30
 
+bool visited[LENGTH * LENGTH] = { false };
 
 void MoveProcess(int goalType);
 void showWallsAndPrintWait(WallReading w, int row, int col, int direction, int nextRow, int nextCol, int nextDir);
@@ -40,7 +41,15 @@ void printMazeDebugLoop();
 void reversePath(int* original, int* reversed, int& length);
 void buildBestPathFromFloodfillDebug(int startRow, int startCol, int* path, int* pathLen);
 void blinkLEDS();
+void printMaze();
+void clearUnvisitedCells();
 
+// const int LENGTH = 16;
+const int HEIGHT = 16;
+
+extern bool horizontalWalls[HEIGHT + 1][LENGTH]; // Between rows, so +1
+extern bool verticalWalls[HEIGHT][LENGTH + 1];   // Between cols, so +1
+extern int floodfillArr[LENGTH * HEIGHT];
 
 MotionController motion;
 
@@ -131,34 +140,49 @@ void loop() {
                     motion.update();
                 } 
                 direction = NORTH;
-                floodfill(GOAL_HOME);
-                //buildBestPathFromFloodfillDebug(curRow, curCol, stuff_path, &pathLen);
+                
+                clearUnvisitedCells();
+                floodfill(GOAL_CENTER);
+                buildBestPathFromFloodfillDebug(0, 0, stuff_path, &pathLen);
+                reversePath(stuff_path, reversed_path, pathLen);
             }
             break;
         case RACE:
-            while(1){
-                buildBestPathFromFloodfillDebug(curRow,curCol, stuff_path, &pathLen);
-                delay(1000);
-                if (digitalRead(LOG_BTN) == LOW) {break;}
-            }
-            while(1){
-                Serial.println("=== Path to Center (Encoded) ===");
-                for (int i = 0; i < pathLen; i++) {
-                    Serial.print(stuff_path[i]);
-                    Serial.print(" ");
+            // while(1){
+                
+            //     printMaze();
+            //     buildBestPathFromFloodfillDebug(0, 0, stuff_path, &pathLen);
+            //     for (int i = 0; i < pathLen; i++) {
+            //         Serial.print(stuff_path[i]);
+            //         Serial.print(" ");
+            //     }
+            //     Serial.println("\n===============================");
+            //     // buildBestPathFromFloodfillDebug(curRow,curCol, stuff_path, &pathLen);
+            //     delay(1000);
+            //     if (digitalRead(LOG_BTN) == LOW) {break;}
+            // }
+            // while(1){
+            //     Serial.println("=== Path to Center (Encoded) ===");
+            //     for (int i = 0; i < pathLen; i++) {
+            //         Serial.print(stuff_path[i]);
+            //         Serial.print(" ");
+            //     }
+            //     Serial.println("\n===============================");
+            //     delay(1000);
+            //     if (digitalRead(LOG_BTN) == LOW) {break;}
+            // }
+            if ((reversed_path[move_cnt] == 0) || (reversed_path[move_cnt] == 1)){
+                float front_left_dist  = TOF_getDistance(FRONT_LEFT); 
+                float front_right_dist = TOF_getDistance(FRONT_RIGHT);
+                if ((front_left_dist >= 0 && front_right_dist >= 0) && (front_left_dist < front_threshold) && (front_right_dist < front_threshold)){
+                    motion.fwd_to_wall(direction, FWD_WALL_DISTANCE, DISTANCE_SPEED_RACE, 0.0); // Recover error by bringing robot closer to wall
+                    while (motion.isBusy()){
+                        motion.update();
+                    }
+                    delay(100);
                 }
-                Serial.println("\n===============================");
-                delay(1000);
-                if (digitalRead(LOG_BTN) == LOW) {break;}
-            }
-            if ((stuff_path[move_cnt] == 0) || (stuff_path[move_cnt] == 1)){
-                motion.fwd_to_wall(direction, FWD_WALL_DISTANCE, DISTANCE_SPEED_RACE, 0.0); // Recover error by bringing robot closer to wall
-                while (motion.isBusy()){
-                    motion.update();
-                }
-                delay(100);
 
-                if (stuff_path[move_cnt] == 0) {
+                if (reversed_path[move_cnt] == 0) {
                     motion.rotate((direction + 270) % 360);  // Left turn
                     direction = (direction + 270) % 360;
                     move_cnt++;
@@ -171,10 +195,10 @@ void loop() {
                     delay(200); // Small delay to allow rotation to complete
                 }
             }
-            else if (stuff_path[move_cnt] == 3) {
+            else if (reversed_path[move_cnt] == 3) {
                 // Count how many consecutive forwards
                 int forward_steps = 0;
-                while (move_cnt + forward_steps < pathLen && stuff_path[move_cnt + forward_steps] == 3) {
+                while (move_cnt + forward_steps < pathLen && reversed_path[move_cnt + forward_steps] == 3) {
                     forward_steps++;
                 }
 
@@ -230,11 +254,13 @@ void loop() {
 void MoveProcess(int goalType) {
     // Step 1: Sense and update wall map
     WallReading walls = readWalls(curRow, curCol, direction);
-    updateWallMap(curRow, curCol, walls, direction);         
+    updateWallMap(curRow, curCol, walls, direction);       
+    setWall(0,0, EAST, true); // Debugging: Set wall at (0,0) to EAST
 
     // Step 2: Floodfill map
     floodfill(goalType);
 
+    visited[curRow * LENGTH + curCol] = true;
     // Step 3: Decide next move
     int nextRow, nextCol, nextDir;
     getNextMove(curRow, curCol, direction, &nextRow, &nextCol, &nextDir);
@@ -281,6 +307,21 @@ void MoveProcess(int goalType) {
     // Step 5: Update state
     lastRow = curRow;
     lastCol = curCol;
+}
+
+void clearUnvisitedCells() {
+    for (int i = 0; i < HEIGHT * LENGTH; i++) {
+        int row = i / LENGTH;
+        int col = i % LENGTH;
+
+        if (!visited[i] && !inCenter(row, col)) {
+            // Set walls in all four directions
+            setWall(row, col, 0, true);
+            setWall(row, col, 1,  true);
+            setWall(row, col, 2, true);
+            setWall(row, col, 3,  true);
+        }
+    }
 }
 
 void showWallsAndPrintWait(WallReading w, int row, int col, int direction, int nextRow, int nextCol, int nextDir) {
@@ -397,7 +438,7 @@ void buildBestPathFromFloodfillDebug(int startRow, int startCol, int* path, int*
 
     Serial.println("=== Debug: Building Best Path from Floodfill ===");
 
-    while (!inHome(row, col) && index < 256) {
+    while (!inCenter(row, col) && index < 256) {
         Serial.print("At cell: (");
         Serial.print(row);
         Serial.print(", ");
@@ -415,7 +456,7 @@ void buildBestPathFromFloodfillDebug(int startRow, int startCol, int* path, int*
 
             if (!isValid(r, c)) continue;
             
-            if (existWall(row, col, d, DEBUG_FALSE)) {
+            if (existWall(row, col, d, DEBUG_TRUE)) {
                 Serial.print("  Wall exists at dir ");
                 Serial.println(d);
                 continue;
@@ -472,7 +513,12 @@ void buildBestPathFromFloodfillDebug(int startRow, int startCol, int* path, int*
             tempDir = bestDir;
         }
 
-        if (inHome(row, col)) {
+        if (inCenter(row, col)) {
+            Serial.print("Reached center at: (");
+            Serial.print(row);
+            Serial.print(", ");
+            Serial.print(col);
+            Serial.println(")");
             break;
         }
         delay(100);
@@ -493,4 +539,56 @@ void blinkLEDS(){
     digitalWrite(LED_LEFT, LOW);
     digitalWrite(LED_FRONT, LOW);
     digitalWrite(LED_RIGHT, LOW);
+}
+void printMaze() {
+    Serial.println("===== Maze View =====");
+
+    for (int row = HEIGHT - 1; row >= 0; row--) {
+        // Print top horizontal walls of the current row
+        for (int col = 0; col < LENGTH; col++) {
+            Serial.print("+");
+            if (existWall(row, col, 0, DEBUG_TRUE)) {
+                Serial.print("---");
+            } else {
+                Serial.print("   ");
+            }
+        }
+        Serial.println("+");
+
+        // Print vertical walls and floodfill values
+        for (int col = 0; col < LENGTH; col++) {
+            // West wall
+            if (existWall(row, col, 3, DEBUG_TRUE)) {
+                Serial.print("|");
+            } else {
+                Serial.print(" ");
+            }
+
+            // Floodfill value, padded to 3 characters
+            int val = floodfillArr[row * LENGTH + col];
+            if (val < 10) Serial.print("  ");
+            else if (val < 100) Serial.print(" ");
+            Serial.print(val);
+        }
+
+        // Rightmost east wall at the end of the row
+        if (true) {
+            Serial.println("|");
+        } else {
+            Serial.println(" ");
+        }
+    }
+
+    // Print bottom horizontal walls of row 0
+    for (int col = 0; col < LENGTH; col++) {
+        Serial.print("+");
+        if (existWall(0, col, 2, DEBUG_TRUE)) {
+            Serial.print("---");
+        } else {
+            Serial.print("   ");
+        }
+    }
+    Serial.println("+");
+
+    Serial.println("=====================");
 }
