@@ -121,54 +121,17 @@ void loop() {
                 // Serial.println("Reached center. Entering debug mode.");
                 // printMazeDebugLoop();
                 // Serial.println("Continuing to HOME...");
-                current_state = HOME;
-            }
-            break;
-        case HOME:
-            MoveProcess(GOAL_HOME);
-            if (inHome(curRow, curCol)) {
-                
-                while (motion.isBusy()){
-                    motion.update();
-                }
-                
+                current_state = RACE;
                 motion.rotate(NORTH);
                 while (motion.isBusy()){
                     motion.update();
-                }
-            
+                } 
                 direction = NORTH;
-                stop_motors();
-                blinkLEDS();
-                //reversePath(best_path, reversed_path, best_path_index);
-
-
-                /*Serial.println("Reversed Path:");
-                for (int i = 0; i < best_path_index; i++) {
-                    Serial.print(reversed_path[i]);
-                    Serial.print(" ");
-                }*/
-                floodfill(GOAL_CENTER);
+                floodfill(GOAL_HOME);
                 buildBestPathFromFloodfillDebug(0,0, stuff_path, &pathLen);
-                current_state = RACE;
             }
             break;
         case RACE:
-            /*while(1){
-                buildBestPathFromFloodfillDebug(0,0, stuff_path, &pathLen);
-                delay(1000);
-                if (digitalRead(LOG_BTN) == LOW) {break;}
-            }
-            while(1){
-                Serial.println("=== Path to Center (Encoded) ===");
-                for (int i = 0; i < pathLen; i++) {
-                    Serial.print(stuff_path[i]);
-                    Serial.print(" ");
-                }
-                Serial.println("\n===============================");
-                delay(1000);
-                if (digitalRead(LOG_BTN) == LOW) {break;}
-            }*/
             if ((stuff_path[move_cnt] == 0) || (stuff_path[move_cnt] == 1)){
                 motion.fwd_to_wall(direction, 30, 450.0, 0.0); // Recover error by bringing robot closer to wall
                 while (motion.isBusy()){
