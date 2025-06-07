@@ -124,7 +124,7 @@ void Forward2DisControl::init(int heading, int dis_mm, float spdX) {
     leftEnc.reset();  // Reset distance
     rightEnc.reset();  // Reset distance
 
-    stop_motors();
+    // stop_motors();
     state = CONSTANT_SPEED; 
 }
 
@@ -174,7 +174,7 @@ void Forward2DisControl::update() {
 
     motor_driver.setSpeeds(pwmR, pwmL);
 
-    if (abs(remaining_dis) < 7.0) { // If within 10 mm of target distance or very slow
+    if (abs(remaining_dis) < 12.0) { // If within 10 mm of target distance or very slow
         stop_motors();
         done = true;
     }

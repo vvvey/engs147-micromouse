@@ -166,8 +166,8 @@ void Forward2WallControl::init(float heading, int dis_mm, float spdX, float spdW
     leftEnc.reset();  // Reset distance
     rightEnc.reset();  // Reset distance
 
-    stop_motors();
-    state = CONSTANT_SPEED; 
+    // stop_motors();
+    state = DISTANCE; 
 }
 
 
@@ -201,7 +201,7 @@ void Forward2WallControl::update() {
         if (tof_FL < 200) {
             stop_motors();
             state = DISTANCE; 
-            delay(1000); // Wait for 1 second
+            // delay(1000); // Wait for 1 second
         }
     }
 
@@ -258,8 +258,8 @@ void Forward2WallControl::update() {
         }
     }
 
-    if (state == DISTANCE && (tof_FR_err0) < 5 && abs(tof_FL_err0) < 5) {
-        stop_motors();
+    if (state == DISTANCE && (tof_FR_err0) < 6 && abs(tof_FL_err0) < 6 && abs(tof_FR_err1) < 6 && abs(tof_FL_err1) < 6 && abs(tof_FL_err2) < 6 && abs(tof_FR_err2) < 6) {
+        // stop_motors();
         done = true;
     }
 

@@ -37,7 +37,7 @@ float compensator180(float e0, float e1, float e2, float v1, float v2) {
 }
 
 void RotationControl::init(float heading_deg, float omega) { // cw positive, ccw negative angle
-    stop_motors();
+    // stop_motors();
     ref_angle = heading_deg;
     if (ref_angle > 180) ref_angle -= 360;
     if (ref_angle < -180) ref_angle += 360;
@@ -112,7 +112,7 @@ void RotationControl::update() {
 
     loop_counter++;
 
-    if (abs(angle_err_0) < 4 and abs(angle_err_1) < 4 and abs(angle_err_2) < 4) {
+    if (abs(angle_err_0) < 6 and abs(angle_err_1) < 6 and abs(angle_err_2) < 6) {
         done = true;
         stop_motors();
     }

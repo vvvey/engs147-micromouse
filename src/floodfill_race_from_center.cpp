@@ -26,11 +26,11 @@
 #define RACE 2
 #define STOP 3
 
-#define CELL_LENGTH 185 // Distance to stop in fwd_dis
-#define DISTANCE_SPEED 500.0
+#define CELL_LENGTH 185.0 // Distance to stop in fwd_dis
+#define DISTANCE_SPEED 600.0
 #define DISTANCE_SPEED_RACE 450.0
 #define CELL_LENGTH_RACE 180
-#define FWD_WALL_DISTANCE 30
+#define FWD_WALL_DISTANCE 20
 
 bool visited[LENGTH * LENGTH] = { false };
 
@@ -51,6 +51,7 @@ extern bool horizontalWalls[HEIGHT + 1][LENGTH]; // Between rows, so +1
 extern bool verticalWalls[HEIGHT][LENGTH + 1];   // Between cols, so +1
 extern int floodfillArr[LENGTH * HEIGHT];
 
+
 MotionController motion;
 
 // Maze position & direction tracking
@@ -67,6 +68,10 @@ int move_cnt = 0;
 
 int stuff_path[256];
 int pathLen;
+
+// float total_imu_drift = 0.0;
+// float total_imu_drift_count = 0.0;
+int current_imu_drift = 0;
 
 void setup() {
     digitalWrite(LED_LEFT, HIGH);
@@ -100,18 +105,18 @@ void setup() {
 }
 
 void loop() {
-    if (digitalRead(START_BTN) == LOW) { 
-        run = true;
-        Serial.println("Start Pressed");
-        delay(500);
-    }
+    // if (digitalRead(START_BTN) == LOW) { 
+    //     run = true;
+    //     Serial.println("Start Pressed");
+    //     delay(500);
+    // }
 
-    if (digitalRead(STOP_BTN) == LOW) {
-        stop_motors();
-        exit(0);
-    }
+    // if (digitalRead(STOP_BTN) == LOW) {
+    //     stop_motors();
+    //     exit(0);
+    // }
 
-    if (!run) return;
+    // if (!run) return;
 
     motion.update();
 
@@ -179,20 +184,32 @@ void loop() {
                     while (motion.isBusy()){
                         motion.update();
                     }
-                    delay(100);
+
+                    int heading = IMU_readZ();
+                    int imu_err = direction - heading;
+                    if (imu_err < -180) imu_err += 360; // Normalize to [-180, 180]
+                    else if (imu_err > 180) imu_err -= 360;
+                    current_imu_drift = constrain(imu_err, -5, 5); // Constrain drift to [-5, 5]
+                    // delay(100);
                 }
 
                 if (reversed_path[move_cnt] == 0) {
-                    motion.rotate((direction + 270) % 360);  // Left turn
+                    int dir = (direction + 270 - current_imu_drift) % 360;
+                    if (dir < 0) dir += 360; // Normalize to [0, 360)
+                    else if (dir >= 360) dir -= 360;
+                    motion.rotate(dir);  // Left turn
                     direction = (direction + 270) % 360;
                     move_cnt++;
-                    delay(200); // Small delay to allow rotation to complete
+                    // delay(200); // Small delay to allow rotation to complete
                 }
                 else {
-                    motion.rotate((direction + 90) % 360);   // Right turn
+                    int dir = (direction + 90 - current_imu_drift) % 360;
+                    if (dir < 0) dir += 360; // Normalize to [0, 360)
+                    else if (dir >= 360) dir -= 360;
+                    motion.rotate(dir);   // Right turn
                     direction = (direction + 90) % 360;
                     move_cnt++;
-                    delay(200); // Small delay to allow rotation to complete
+                    // delay(200); // Small delay to allow rotation to complete
                 }
             }
             else if (reversed_path[move_cnt] == 3) {
@@ -201,8 +218,10 @@ void loop() {
                 while (move_cnt + forward_steps < pathLen && reversed_path[move_cnt + forward_steps] == 3) {
                     forward_steps++;
                 }
-
-                motion.fwd_to_dis(direction, CELL_LENGTH_RACE*forward_steps, DISTANCE_SPEED_RACE);
+                int dir = direction - current_imu_drift;
+                if (dir < 0) dir += 360; // Normalize to [0, 360)
+                else if (dir >= 360) dir -= 360;
+                motion.fwd_to_dis(dir, CELL_LENGTH_RACE*forward_steps, DISTANCE_SPEED_RACE);
                 move_cnt += forward_steps;
 
                 // Update position just in case we want to do anything with robot in future
@@ -211,7 +230,7 @@ void loop() {
                 else if (direction == EAST)  curCol += forward_steps;
                 else if (direction == WEST)  curCol -= forward_steps;
 
-                delay(200); // Small delay to allow movement to complete
+                // delay(200); // Small delay to allow movement to complete
             }
 
             if (inHome(curRow, curCol)) {
@@ -275,9 +294,18 @@ void MoveProcess(int goalType) {
         while (motion.isBusy()){
             motion.update();
         }
-        delay(100);
+        int imu_heading = IMU_readZ();
+        int imu_err = direction - imu_heading;
+        
+        if (imu_err < -180) imu_err += 360; // Normalize to [-180, 180]
+        else if (imu_err > 180) imu_err -= 360;
+        current_imu_drift = constrain(imu_err, -3, 3); // Constrain drift to [-5, 5]
+        // delay(100);
     }
-    motion.rotate(nextDir);
+     float dir = nextDir - current_imu_drift;
+        if (dir < 0) dir += 360; // Normalize to [0, 360)
+        else if (dir >= 360) dir -= 360;
+    motion.rotate(dir);
 
     if (goalType == GOAL_HOME) {
         int delta = (nextDir - direction + 360) % 360;
@@ -291,7 +319,10 @@ void MoveProcess(int goalType) {
 
         direction = nextDir;
     } else {
-        motion.fwd_to_dis(direction, CELL_LENGTH, DISTANCE_SPEED);
+        int dir = direction - current_imu_drift;
+        if (dir < 0) dir += 360; // Normalize to [0, 360)
+        else if (dir >= 360) dir -= 360;
+        motion.fwd_to_dis(dir, CELL_LENGTH, DISTANCE_SPEED);
 
         if (direction == NORTH) curRow++;
         else if (direction == EAST)  curCol++;
@@ -436,14 +467,14 @@ void buildBestPathFromFloodfillDebug(int startRow, int startCol, int* path, int*
     int col = startCol;
     int index = 0;
 
-    Serial.println("=== Debug: Building Best Path from Floodfill ===");
+    // Serial.println("=== Debug: Building Best Path from Floodfill ===");
 
     while (!inCenter(row, col) && index < 256) {
-        Serial.print("At cell: (");
-        Serial.print(row);
-        Serial.print(", ");
-        Serial.print(col);
-        Serial.println(")");
+        // Serial.print("At cell: (");
+        // Serial.print(row);
+        // Serial.print(", ");
+        // Serial.print(col);
+        // Serial.println(")");
 
         int minVal = 255;
         int bestDir = -1;
@@ -457,22 +488,22 @@ void buildBestPathFromFloodfillDebug(int startRow, int startCol, int* path, int*
             if (!isValid(r, c)) continue;
             
             if (existWall(row, col, d, DEBUG_TRUE)) {
-                Serial.print("  Wall exists at dir ");
-                Serial.println(d);
+                // Serial.print("  Wall exists at dir ");
+                // Serial.println(d);
                 continue;
             }
 
             int val = getFloodfillValue(r, c);
             if (val == UNDEFINED) {
-                Serial.print("  Skipping undefined floodfill at dir ");
-                Serial.println(d);
+                // Serial.print("  Skipping undefined floodfill at dir ");
+                // Serial.println(d);
                 continue;
             }
 
-            Serial.print("  Direction ");
-            Serial.print(d);
-            Serial.print(": floodfill val = ");
-            Serial.println(val);
+            // Serial.print("  Direction ");
+            // Serial.print(d);
+            // Serial.print(": floodfill val = ");
+            // Serial.println(val);
 
             if (val < minVal) {
                 minVal = val;
@@ -483,7 +514,7 @@ void buildBestPathFromFloodfillDebug(int startRow, int startCol, int* path, int*
         }
 
         if (bestDir == -1) {
-            Serial.println("  Path dead-end: floodfill may be invalid.");
+            // Serial.println("  Path dead-end: floodfill may be invalid.");
             break;
         }
 
@@ -502,10 +533,10 @@ void buildBestPathFromFloodfillDebug(int startRow, int startCol, int* path, int*
             move = 0; // Left
         }
 
-        Serial.print("  Chosen direction: ");
-        Serial.print(bestDir);
-        Serial.print(", move encoded as: ");
-        Serial.println(move);
+        // Serial.print("  Chosen direction: ");
+        // Serial.print(bestDir);
+        // Serial.print(", move encoded as: ");
+        // Serial.println(move);
 
         path[index++] = move;
 
@@ -514,21 +545,21 @@ void buildBestPathFromFloodfillDebug(int startRow, int startCol, int* path, int*
         }
 
         if (inCenter(row, col)) {
-            Serial.print("Reached center at: (");
-            Serial.print(row);
-            Serial.print(", ");
-            Serial.print(col);
-            Serial.println(")");
+            // Serial.print("Reached center at: (");
+            // Serial.print(row);
+            // Serial.print(", ");
+            // Serial.print(col);
+            // Serial.println(")");
             break;
         }
-        delay(100);
+        // delay(100);
     }
 
     *pathLen = index;
 
-    Serial.print("Total path length: ");
-    Serial.println(*pathLen);
-    Serial.println("===============================================");
+    // Serial.print("Total path length: ");
+    // Serial.println(*pathLen);
+    // Serial.println("===============================================");
 }
 
 void blinkLEDS(){
