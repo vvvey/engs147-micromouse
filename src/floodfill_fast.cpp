@@ -129,7 +129,23 @@ void loop() {
                     }
 
                     stop_motors();
-                    exit(0);
+                    direction = NORTH;
+                
+                    clearUnvisitedCells();
+                    floodfill(GOAL_CENTER);
+                    buildBestPathFromFloodfillDebug(0, 0, stuff_path, &pathLen);
+                    reversePath(stuff_path, reversed_path, pathLen);
+                    // while(1) {
+                    //     printMaze();
+
+                    //     for (int i = 0; i < pathLen; i++) {
+                    //         Serial.print(reversed_path[i]);
+                    //         Serial.print(" ");
+                    //     }
+                    // }
+                    current_state = RACE;
+                    move_cnt = 0;
+                    return;
                 }
 
                 WallReading_t wall_status = motion.getWallStatus();
@@ -139,33 +155,50 @@ void loop() {
                 wall_reading.left  = wall_status.left_tof  < side_threshold;
                 wall_reading.right = wall_status.right_tof < side_threshold;
                 
+                visited[curRow * LENGTH + curCol] = true; // Mark current cell as visited
                 updateWallMap(curRow, curCol, wall_reading, direction);    
                 setWall(0,0, EAST, true); 
                 floodfill(GOAL_CENTER);
                 int nextRow, nextCol, nextDir;
                 getNextMove(curRow, curCol, direction, &nextRow, &nextCol, &nextDir);
+                
                 if (direction == nextDir) {
-                    motion.fwd(direction, 270); 
+                    int dir = direction - current_imu_drift;
+                    if (dir < 0) dir += 360; // Normalize to [0, 360)
+                    else if (dir >= 360) dir -= 360;
+                    motion.fwd(dir, 355); 
                     delay(100);
+
                     if (direction == NORTH) curRow++;
                     else if (direction == EAST)  curCol++;
                     else if (direction == SOUTH) curRow--;
-                    else if (direction == WEST)  curCol--;                   
+                    else if (direction == WEST)  curCol--;    
+                    
+                    break;
                 } 
             }
 
             if (motion.controlType() == 1) { // Forward Search Mode
                 WallReading_t wall_status = motion.getWallStatus();
 
+                static bool prev_left = true;
+                static bool prev_right = true;
+
+                WallReading wall_reading = WallReading();
+                wall_reading.front = (wall_status.front_left_tof < front_threshold &&  wall_status.front_right_tof < front_threshold);
+                wall_reading.left  = wall_status.left_tof  < side_threshold;
+                wall_reading.right = wall_status.right_tof < side_threshold;
+
                 int dis_traveled = wall_status.dis_traveled_mm;
-                if (dis_traveled % 180 > 110 && (dis_traveled + 90) / 180 > num_block_traveled ) { // check grid only when left and right tof are valid
+                if (dis_traveled % 180 > 125 && (dis_traveled + 90) / 180 > num_block_traveled ) { // check grid only when left and right tof are valid
                     // MoveProcess(GOAL_CENTER, wall_status);
-                    WallReading wall_reading = WallReading();
-                    wall_reading.front = (wall_status.front_left_tof < front_threshold &&  wall_status.front_right_tof < front_threshold);
-                    wall_reading.left  = wall_status.left_tof  < side_threshold;
-                    wall_reading.right = wall_status.right_tof < side_threshold;
                     
-                    updateWallMap(curRow, curCol, wall_reading, direction);       
+
+                    prev_left = wall_reading.left;
+                    prev_right = wall_reading.right;
+
+                    visited[curRow * LENGTH + curCol] = true; // Mark current cell as visited
+                    updateWallMap(curRow, curCol, wall_reading, direction);
                     setWall(0,0, EAST, true);
                     floodfill(GOAL_CENTER);
                     
@@ -179,6 +212,12 @@ void loop() {
                         while (motion.isBusy()) {
                             motion.update();
                         }
+
+                        int imu_heading = IMU_readZ();
+                        int imu_err = imu_heading - direction;
+                        if (imu_err < -180) imu_err += 360; // Normalize to [-180, 180]
+                        else if (imu_err > 180) imu_err -= 360;
+                        // current_imu_drift = constrain(imu_err, -3, 3); // Constrain drift to [-3, 3]
                     }
 
                     int nextRow, nextCol, nextDir;
@@ -191,7 +230,7 @@ void loop() {
                         }
 
                     
-                        int dir = nextDir;
+                        int dir = nextDir - current_imu_drift;
                         if (dir < 0) dir += 360; // Normalize to [0, 360)
                         else if (dir >= 360) dir -= 360;
                         
@@ -200,14 +239,15 @@ void loop() {
                         while (motion.isBusy()) {
                             motion.update();
                         }
-                        direction = dir;
+                        direction = nextDir;
                         num_block_traveled = 0;
                     } 
 
                     if (motion.isBusy()) {
                         curRow = nextRow;
                         curCol = nextCol;
-                        num_block_traveled = (dis_traveled + 90) / 180;
+                        visited[curRow * LENGTH + curCol] = true;
+                        num_block_traveled = (dis_traveled + 90) / 180; // Update number of blocks traveled
                     } else {
                         num_block_traveled = 0;
                     }
@@ -217,7 +257,90 @@ void loop() {
                 }
             }
 
-        break;
+            break;
+        case RACE:
+            if (motion.isBusy()) {break;} 
+            if ((reversed_path[move_cnt] == 0) || (reversed_path[move_cnt] == 1)){
+                float front_left_dist  = TOF_getDistance(FRONT_LEFT); 
+                float front_right_dist = TOF_getDistance(FRONT_RIGHT);
+                if ((front_left_dist >= 0 && front_right_dist >= 0) && (front_left_dist < front_threshold) && (front_right_dist < front_threshold)){
+                    motion.fwd_to_wall(direction, FWD_WALL_DISTANCE, DISTANCE_SPEED_RACE, 0.0); // Recover error by bringing robot closer to wall
+                    while (motion.isBusy()){
+                        motion.update();
+                    }
+
+                    int heading = IMU_readZ();
+                    int imu_err = direction - heading;
+                    if (imu_err < -180) imu_err += 360; // Normalize to [-180, 180]
+                    else if (imu_err > 180) imu_err -= 360;
+                    current_imu_drift = constrain(imu_err, -3, 3); // Constrain drift to [-3, 3]
+                    delay(100);
+                }
+
+                if (reversed_path[move_cnt] == 0) {
+                    int dir = (direction + 270 - current_imu_drift) % 360;
+                    if (dir < 0) dir += 360; // Normalize to [0, 360)
+                    else if (dir >= 360) dir -= 360;
+                    motion.rotate(dir);  // Left turn
+                    direction = (direction + 270) % 360;
+                    move_cnt++;
+                    // delay(200); // Small delay to allow rotation to complete
+                }
+                else {
+                    int dir = (direction + 90 - current_imu_drift) % 360;
+                    if (dir < 0) dir += 360; // Normalize to [0, 360)
+                    else if (dir >= 360) dir -= 360;
+                    motion.rotate(dir);   // Right turn
+                    direction = (direction + 90) % 360;
+                    move_cnt++;
+                    // delay(200); // Small delay to allow rotation to complete
+                }
+            }
+            else if (reversed_path[move_cnt] == 3) {
+                // Count how many consecutive forwards
+                int forward_steps = 0;
+                while (move_cnt + forward_steps < pathLen && reversed_path[move_cnt + forward_steps] == 3) {
+                    forward_steps++;
+                }
+                int dir = direction - current_imu_drift;
+                if (dir < 0) dir += 360; // Normalize to [0, 360)
+                else if (dir >= 360) dir -= 360;
+                motion.fwd_to_dis(dir, CELL_LENGTH_RACE*forward_steps, DISTANCE_SPEED_RACE);
+                move_cnt += forward_steps;
+
+                // Update position just in case we want to do anything with robot in future
+                if (direction == NORTH) curRow += forward_steps;
+                else if (direction == SOUTH) curRow -= forward_steps;
+                else if (direction == EAST)  curCol += forward_steps;
+                else if (direction == WEST)  curCol -= forward_steps;
+
+                // delay(200); // Small delay to allow movement to complete
+            }
+
+            if (inHome(curRow, curCol)) {
+                //motion.rotate(direction+180);
+                while (motion.isBusy()){
+                    motion.update();
+                }
+                stop_motors();
+                blinkLEDS();
+                current_state = STOP;
+            }     
+            /*Serial.println("=== Best Path (Return Home) ===");
+            for (int i = 0; i < best_path_index; i++) {
+                Serial.print(best_path[i]);
+                Serial.print(" ");
+            }
+            Serial.println("\n===============================");
+            
+            Serial.println("=== Best Reverse Path (Race Center) ===");
+            for (int i = 0; i < best_path_index; i++) {
+                Serial.print(reversed_path[i]);
+                Serial.print(" ");
+            }
+            Serial.println("\n===============================");*/
+
+            break;
     }
 }
 

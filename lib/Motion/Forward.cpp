@@ -54,7 +54,7 @@ float Forward::speed_compensator_R(float target_speed, float current_speed_R) {
 
 float Forward::heading_compensator(float curr_heading) {
     // PD gains
-    float Kp = 3.0;  // proportional gain
+    float Kp = 3.2;  // proportional gain
     float Kd = 0.0;  // derivative gain (tune this as needed)
 
     // Compute heading error with wrap-around at ±180°
@@ -91,7 +91,7 @@ float Forward::side_tof_compensator(float tof_L, float tof_R) {
     side_tof_err0 = alpha * side_tof_err0 + (1.0f - alpha) * side_tof_err0; // Low-pass filter
 
     // PD Controller 
-    float kp = 0.18;
+    float kp = 0.25;
     float ki = 0.00;
     float kd = 0.05;
     float dt = 0.1;
@@ -173,23 +173,35 @@ void Forward::update() {
         // Serial.print(tof_L);
     }
 
-    if (index % 8 == 0) { // Sampling time = TS * 20 = 400ms
-        tof_FL = TOF_getDistance(TOF_FRONT_LEFT);
+    static int sample_count = 0;  // Tracks how many times we've sampled in this 180mm block
+
+if ((current_dis_mm % 180 > 80) && sample_count < 3 && index % 3 == 0) {
+    // Step 1: Always sample the first sensor
+    tof_FL = TOF_getDistance(TOF_FRONT_LEFT);
+    if (tof_FL < 0) tof_FL = 200.0f;
+
+    // Step 2: Conditionally sample second sensor
+    if (tof_FL < 200.0f) {
         tof_FR = TOF_getDistance(TOF_FRONT_RIGHT);
-
-        if (tof_FL < 0) tof_FL = 200.0; // Ensure valid TOF reading
-        if (tof_FR < 0) tof_FR = 200.0; // Ensure valid TOF reading
-
-
-        wall_status.front_left_tof = tof_FL;
-        wall_status.front_right_tof = tof_FR;
-        wall_status.dis_traveled_mm = 0.5f * (left_dis + right_dis);
-
-        // if (tof_FL < 180 || tof_FR < 180) {
-        //     stop_next_block();
-        //     return;
-        // }
+        if (tof_FR < 0) tof_FR = 200.0f;
+    } else {
+        tof_FR = 200.0f;
     }
+
+    // Step 3: Update status
+    wall_status.front_left_tof = tof_FL;
+    wall_status.front_right_tof = tof_FR;
+    wall_status.dis_traveled_mm = 0.5f * (left_dis + right_dis);
+
+    // Mark that we've sampled in this block
+    sample_count++;
+    }
+
+    // Reset the flag at the start of the next block
+    if (current_dis_mm % 180 < 80) {
+        sample_count = 0;
+    }
+
 
     float vL = 0.0;
     float vR = 0.0;
@@ -250,6 +262,8 @@ int Forward::controlType() {
 }
 
 void Forward::stop_next_block() {
+    stop_motors();
+    delay(100);
     target_dis_mm = int(current_dis_mm / 180) * 180 + 180;
     state = DISTANCE;
 }

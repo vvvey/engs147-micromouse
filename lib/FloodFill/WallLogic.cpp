@@ -45,7 +45,7 @@ void updateWallMap(int row, int col, WallReading w, int direction) {
     int abs_left  = dir_left  / 90;
     int abs_right = dir_right / 90;
 
-    if (w.front) setWall(row, col, abs_front, true);
-    if (w.left)  setWall(row, col, abs_left,  true);
-    if (w.right) setWall(row, col, abs_right, true);
+    if (w.front) setWall(row, col, abs_front, w.front);
+    if (w.left)  setWall(row, col, abs_left,  w.left);
+    if (w.right) setWall(row, col, abs_right, w.right);
 }

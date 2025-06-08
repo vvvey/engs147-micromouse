@@ -259,7 +259,7 @@ void Forward2WallControl::update() {
         }
     }
 
-    if (state == DISTANCE && (tof_FR_err0) < 4 && abs(tof_FL_err0) < 4 && abs(tof_FR_err1) < 4 && abs(tof_FL_err1) < 4 && abs(tof_FL_err2) < 4 && abs(tof_FR_err2) < 4) {
+    if (state == DISTANCE && (tof_FR_err0) < 6 && abs(tof_FL_err0) < 6 && abs(tof_FR_err1) < 6 && abs(tof_FL_err1) < 6 && abs(tof_FL_err2) < 6 && abs(tof_FR_err2) < 6) {
         // stop_motors();
         done = true;
     }

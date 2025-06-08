@@ -112,7 +112,7 @@ void RotationControl::update() {
 
     loop_counter++;
 
-    if (abs(angle_err_0) < 5 and abs(angle_err_1) < 5 and abs(angle_err_2) < 5) {
+    if (abs(angle_err_0) < 6 and abs(angle_err_1) < 6 and abs(angle_err_2) < 6) {
         done = true;
         stop_motors();
     }
