@@ -14,10 +14,14 @@ public:
     void logData() override;
     bool isFinished() override;
     int getTSMillis() override;
+    int controlType() { return 0;}
+    void stop_next_block() {return;}
+    WallReading_t getWallStatus() {return wall_status;}
 private:
 
     ControlState state; // Control state, initialized in constructor
-    
+
+    WallReading_t wall_status;
     int target_dis_mm;
     bool done = false;
     float speedX;    

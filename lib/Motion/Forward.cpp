@@ -1,5 +1,5 @@
 // Control Feedback Layer
-#include "Forward2DisControl.h"
+#include "Forward.h"
 #include "TOF.h"
 #include "Encoder.h"
 #include "IMU.h"
@@ -8,16 +8,15 @@
 #include "compensators.h"
 #include "WallLogic.h"
 
-Forward2DisControl fwd_2_dis_ctrl; // Allow MotionController to extern
 
 #define TOF_RIGHT 0
 #define TOF_FRONT_RIGHT 1
 #define TOF_FRONT_LEFT 2
 #define TOF_LEFT 3
 
-Forward2DisControl::Forward2DisControl() {}
+Forward::Forward() {}
 
-float Forward2DisControl::speed_compensator_L(float target_speed, float current_speed_L) {
+float Forward::speed_compensator_L(float target_speed, float current_speed_L) {
     float a = 0.001842;
     float b = 8.948e-5;
     float c = -0.001753;
@@ -35,7 +34,7 @@ float Forward2DisControl::speed_compensator_L(float target_speed, float current_
     return speedL_ctrl0;
 }
 
-float Forward2DisControl::speed_compensator_R(float target_speed, float current_speed_R) {
+float Forward::speed_compensator_R(float target_speed, float current_speed_R) {
     float a = 0.001842;
     float b = 8.948e-5;
     float c = -0.001753;
@@ -53,7 +52,7 @@ float Forward2DisControl::speed_compensator_R(float target_speed, float current_
     return speedR_ctrl0;
 }
 
-float Forward2DisControl::heading_compensator(float curr_heading) {
+float Forward::heading_compensator(float curr_heading) {
     // PD gains
     float Kp = 3.0;  // proportional gain
     float Kd = 0.0;  // derivative gain (tune this as needed)
@@ -71,7 +70,7 @@ float Forward2DisControl::heading_compensator(float curr_heading) {
     return heading_ctrl0;
 }
 
-float Forward2DisControl::side_tof_compensator(float tof_L, float tof_R) {
+float Forward::side_tof_compensator(float tof_L, float tof_R) {
     float alpha = 1.0; // range [0, 1], 1.0 means no filtering
     float offset = -13.0; // found when placed in the middle of two walls
 
@@ -104,17 +103,16 @@ float Forward2DisControl::side_tof_compensator(float tof_L, float tof_R) {
     return side_tof_ctrl_0;
 }
 
+void Forward::init() {return;}
 
-void Forward2DisControl::init() {return;}
-
-void Forward2DisControl::init(int heading, int dis_mm, float spdX) {
+void Forward::init(int heading, int spdX) {
     // Initialize Set points 
     target_heading = heading;
-    target_dis_mm = dis_mm;
+    target_dis_mm = 180 * 16; // reset when see wall, or stop_next_block()
     speedX = spdX;
 
     // Reset variables
-    current_dis_mm = 0.0;
+    current_dis_mm = 0;
     integral_error = 0.0;
     done = false;
     prev_left_mm = 0.0;
@@ -125,10 +123,25 @@ void Forward2DisControl::init(int heading, int dis_mm, float spdX) {
 
     // stop_motors();
     state = CONSTANT_SPEED; 
+
+    float tof_L = TOF_getDistance(TOF_LEFT);
+    float tof_R = TOF_getDistance(TOF_RIGHT);
+    float tof_FL = TOF_getDistance(TOF_FRONT_LEFT);
+    float tof_FR = TOF_getDistance(TOF_FRONT_RIGHT);
+    if (tof_L < 0) tof_L = 200.0; // Ensure valid TOF reading
+    if (tof_R < 0) tof_R = 200.0; // Ensure valid TOF reading
+    if (tof_FL < 0) tof_FL = 200.0; // Ensure valid TOF reading
+    if (tof_FR < 0) tof_FR = 200.0; // Ensure valid TOF reading
+
+    wall_status.left_tof = tof_L;
+    wall_status.right_tof = tof_R;
+    wall_status.front_left_tof = tof_FL;
+    wall_status.front_right_tof = tof_FR;
+    wall_status.dis_traveled_mm = current_dis_mm;
 }
 
 
-void Forward2DisControl::update() {
+void Forward::update() {
     if (done) return;
     leftEnc.update();
     rightEnc.update();
@@ -139,6 +152,8 @@ void Forward2DisControl::update() {
     float left_dis = leftEnc.getDis();
     float right_dis = -rightEnc.getDis();
 
+    current_dis_mm = 0.5f * (left_dis + right_dis); // Average distance travelled
+
     if (index % 5 == 0) { // Sampling time = TS * 5 = 100ms
         float heading = IMU_readZ();
         float tof_L = TOF_getDistance(TOF_LEFT);
@@ -146,6 +161,34 @@ void Forward2DisControl::update() {
 
         heading_control = heading_compensator(heading);
         side_control = side_tof_compensator(tof_L, tof_R);
+
+        if (tof_L < 0) tof_L = 200.0; // Ensure valid TOF reading
+        if (tof_R < 0) tof_R = 200.0; // Ensure valid TOF reading
+        
+        wall_status.left_tof = tof_L;
+        wall_status.right_tof = tof_R;
+        wall_status.dis_traveled_mm = current_dis_mm;
+
+        // Serial.print("Left TOF: ");
+        // Serial.print(tof_L);
+    }
+
+    if (index % 8 == 0) { // Sampling time = TS * 20 = 400ms
+        tof_FL = TOF_getDistance(TOF_FRONT_LEFT);
+        tof_FR = TOF_getDistance(TOF_FRONT_RIGHT);
+
+        if (tof_FL < 0) tof_FL = 200.0; // Ensure valid TOF reading
+        if (tof_FR < 0) tof_FR = 200.0; // Ensure valid TOF reading
+
+
+        wall_status.front_left_tof = tof_FL;
+        wall_status.front_right_tof = tof_FR;
+        wall_status.dis_traveled_mm = 0.5f * (left_dis + right_dis);
+
+        // if (tof_FL < 180 || tof_FR < 180) {
+        //     stop_next_block();
+        //     return;
+        // }
     }
 
     float vL = 0.0;
@@ -155,7 +198,7 @@ void Forward2DisControl::update() {
     float remaining_dis = 0.5f * ((target_dis_mm * dealth_rec - left_dis) + (target_dis_mm * dealth_rec - right_dis));
 
     // Trapezoidal deceleration: Linearly scale down speed as it nears target
-    float min_speed = 75.0;   // mm/s, avoid stalling
+    float min_speed = 5.0;   // mm/s, avoid stalling
     float max_speed = speedX; // original set speed
     float slow_down_distance = 250.0;  // start slowing down within 250 mm
 
@@ -173,37 +216,19 @@ void Forward2DisControl::update() {
 
     motor_driver.setSpeeds(pwmR, pwmL);
 
-    if (abs(remaining_dis) < 12.0) { // If within 10 mm of target distance or very slow
+    if (abs(remaining_dis) < 25.0) { // If within 10 mm of target distance or very slow
         stop_motors();
         done = true;
     }
 
-    // if (index % 10 == 0) {
-    //         float frontR = TOF_getDistance(TOF_FRONT_RIGHT);
-    //         float frontMin =frontR;
-    //         if (frontMin > 0 && frontMin < wall_stop) {
-    //             stop_motors();
-    //             done = true;
-    //             return;
-    //         }
-    // }
-    /*float frontL = TOF_getDistance(TOF_FRONT_LEFT); // Check if wall in front
-    float frontR = TOF_getDistance(TOF_FRONT_RIGHT);
-    float frontMin = min(frontL, frontR);
-    if (frontMin > 0 && frontMin < wall_stop) {
-        stop_motors();
-        done = true;
-        return;
-    }*/
-
     index++;
 }
 
-bool Forward2DisControl::isFinished() {
+bool Forward::isFinished() {
     return done;
 }
 
-void Forward2DisControl::logData() {
+void Forward::logData() {
     Serial.println("Time, Left Speed, Right Speed");
     for (int i = 0; i < index; i++) {
         Serial.print(time[i]);
@@ -216,8 +241,19 @@ void Forward2DisControl::logData() {
     
 }
 
-int Forward2DisControl::getTSMillis() {
+int Forward::getTSMillis() {
     return 20;
 }
 
+int Forward::controlType() {
+    return 1;
+}
 
+void Forward::stop_next_block() {
+    target_dis_mm = int(current_dis_mm / 180) * 180 + 180;
+    state = DISTANCE;
+}
+
+WallReading_t Forward::getWallStatus() {
+    return wall_status;
+}

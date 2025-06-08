@@ -5,7 +5,7 @@
 #include "TOF.h"    // for TOF_getDistance()
 
 #define side_threshold 100.0
-#define front_threshold 150.0
+#define front_threshold 200.0
 #define wall_stop 50.0
 
 struct WallReading {

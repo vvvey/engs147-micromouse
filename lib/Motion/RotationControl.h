@@ -12,6 +12,7 @@ class RotationControl : public Control {
         void logData() override;
         void update() override;
         int getTSMillis() override;
+         int controlType() { return 0;}
 
     private:
         bool done = false;

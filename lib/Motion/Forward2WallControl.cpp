@@ -167,11 +167,12 @@ void Forward2WallControl::init(float heading, int dis_mm, float spdX, float spdW
     rightEnc.reset();  // Reset distance
 
     // stop_motors();
-    state = DISTANCE; 
+    state = CONSTANT_SPEED; 
 }
 
 
 void Forward2WallControl::update() {
+    
     if (done) return;
 
 
@@ -180,8 +181,7 @@ void Forward2WallControl::update() {
 
     float left_speed = leftEnc.getSpeedX();
     float right_speed = rightEnc.getSpeedX();
-
-
+    
     if (index % 5 == 0) { // Sampling time = TS * 5 = 100ms
         float heading = IMU_readZ();
         float tof_L = TOF_getDistance(TOF_LEFT);
@@ -190,6 +190,7 @@ void Forward2WallControl::update() {
         heading_control = heading_compensator(heading);
         side_control = side_tof_compensator(tof_L, tof_R);
     }
+
 
     // checking if the robot should switch to distance control
     if (index % 10 == 0 && state == CONSTANT_SPEED) { // Sampling time = TS * 10 = 200ms
@@ -258,7 +259,7 @@ void Forward2WallControl::update() {
         }
     }
 
-    if (state == DISTANCE && (tof_FR_err0) < 6 && abs(tof_FL_err0) < 6 && abs(tof_FR_err1) < 6 && abs(tof_FL_err1) < 6 && abs(tof_FL_err2) < 6 && abs(tof_FR_err2) < 6) {
+    if (state == DISTANCE && (tof_FR_err0) < 4 && abs(tof_FL_err0) < 4 && abs(tof_FR_err1) < 4 && abs(tof_FL_err1) < 4 && abs(tof_FL_err2) < 4 && abs(tof_FR_err2) < 4) {
         // stop_motors();
         done = true;
     }

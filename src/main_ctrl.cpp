@@ -2,8 +2,9 @@
 #include "IMU.h"
 #include "TOF.h"
 #include "Encoder.h"
-#include "ArduinoMotorShieldR3.h"
 #include "MotionController.h"
+#include "WallLogic.h"
+#include "floodfill.h"
 // #include "Maze.h"
 // 
 #define NORTH 0
@@ -39,104 +40,53 @@ void setup() {
 
 }
 int state = 0;
-bool run = false;
+bool run = true;
+bool checked = false;
 // float curr_heading_main = IMU_readZ();
 
 void loop() {
-    if (digitalRead(START_BTN) == LOW) { 
-        Serial.println("Start Button Pressed");
-        run = true;
-        delay(500);    
-    }
+    // if (digitalRead(START_BTN) == LOW) { 
+    //     Serial.println("Start Button Pressed");
+    //     run = true;
+    //     delay(500);    
+    // }
 
-    if (digitalRead(STOP_BTN) == LOW) {
-        stop_motors();
-        exit(0);
-    }
+    // if (digitalRead(STOP_BTN) == LOW) {
+    //     stop_motors();
+    //     exit(0);
+    // }
 
     if (run) {
         motion.update();
 
         if (!motion.isBusy()) { 
             if (state == 0) {
-                motion.fwd_to_wall(NORTH, 35, 450.0, 0.0); 
+                motion.fwd(NORTH, 300); 
                 state++;
                 delay(500);
             } 
             
-            else if (state == 1) {
-                motion.rotate(EAST);
-                state++;
-                delay(500);
-            } 
-            else if (state == 2) {
-                motion.fwd_to_dis(EAST, 180 * 1, 450.0); // Move forward to wall
-                state++;
-                delay(500);
-            } 
-            else if (state == 3) {
-                motion.rotate(NORTH);
-                state++;
-                delay(500);
-            }
-             else if (state == 4) {
-                motion.fwd_to_wall(NORTH, 35.0, 450.0, 0.0); // Move forward to wall
-                state++;
-                delay(500);
-            } 
-            else if (state == 5) {
-                motion.rotate(WEST);
-                state++;
-                delay(500);
-            } else if (state == 6) {
-                motion.fwd_to_wall(WEST, 35, 450.0, 0.0); // Move forward to wall
-                state++;
-                delay(500);
-            } else if (state == 7) {
-                motion.rotate(NORTH);
-                state++; 
-                delay(500);
-            } else if (state == 8) {
-                motion.fwd_to_dis(NORTH, 180 * 3, 450.0); // Move forward to wall
-                state++;
-                delay(500);
-            
-            } else if (state == 9) {
-                motion.rotate(EAST);
-                state++;
-                delay(500);
-            } else if (state == 10) {
-                motion.fwd_to_dis(EAST, 180 * 1, 450.0); // Move forward to a distance of 100mm
-                state++;
-                delay(500);
-            } else if (state == 11) {
-                motion.rotate(NORTH);
-                state++;
-                delay(500);
-            }
-            else if (state == 12) {
-                motion.fwd_to_wall(NORTH, 35, 450.0, 0.0);
-                state++;
-                delay(500);
-            } else if (state == 13) {
-                motion.rotate(WEST);
-                state++;
-                delay(500);
-            } else if (state == 14) {
-                motion.fwd_to_wall(WEST, 35, 450.0, 0.0);
-                state++;
-                delay(500);
-            } else if (state == 15) {
-                motion.rotate(EAST);
-                state++;
-                delay(500);
-            }
             else {
                 stop_motors();
                 // exit(0);
             }
         }
-    
+        
+        
+        WallReading_t wall_status = motion.getWallStatus();
+        // Serial.print("Left TOF: ");
+        // Serial.print(wall_status.left_tof);
+        // Serial.print(" | Front TOF: ");
+        // Serial.print(wall_status.front_tof);
+        // Serial.print(" | Right TOF: ");
+        // Serial.print(wall_status.right_tof);
+        // Serial.print(" | Distance Traveled: ");
+        // Serial.println(wall_status.dis_traveled_mm);
+        if (!checked && wall_status.right_tof > 100 && wall_status.dis_traveled_mm > 90) {
+            motion.stop_next_block();
+            checked = true;
+        }
+
     }
-    
+
 }

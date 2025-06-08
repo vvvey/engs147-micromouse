@@ -1,28 +1,30 @@
-#ifndef FORWARD_2_DIS_CONTROL_H
-#define FORWARD_2_DIS_CONTROL_H
+#ifndef FORWARD_CONTROL_H
+#define FORWARD_CONTROL_H
 
 #include "Control.h"
 
-class Forward2DisControl : public Control {
+
+
+class Forward : public Control {
 public:
-    Forward2DisControl();
+    Forward();
     void init() override;
-    void init(int heading, int dis_mm, float spdX);
+    void init(int heading, int speedX);
     void update() override;
     bool isFinished() override;
     void logData() override;
     int getTSMillis() override;
-    int controlType() { return 0;}
-    void stop_next_block();
+    int controlType();
+    void stop_next_block(); 
     WallReading_t getWallStatus();
 
 private:
-
+    WallReading_t wall_status; // Wall status, initialized in constructor
     ControlState state; 
     int target_dis_mm;
     bool done = false;
     float speedX;    
-    float current_dis_mm = 0.0;
+    int current_dis_mm = 0.0;
 
     float integral_error = 0.0;  
     const float dt = 0.05;       // 50ms in seconds
